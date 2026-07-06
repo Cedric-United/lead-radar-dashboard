@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Radar – United Consulting™</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --charcoal: #434a55;
+    --body:     #424B55;
+    --light:    #F5F5F5;
+    --lighter:  #FAFAFA;
+    --panel:    #EAEDF2;
+    --border:   #d8dce2;
+    --link:     #1E73BE;
+    --white:    #ffffff;
+  }
+  * { box-sizing: border-box; border-radius: 0 !important; }
+  body {
+    margin: 0;
+    font-family: 'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: var(--body);
+    background: var(--light);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Header ── */
+  header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .logo-mark { width: 34px; height: 34px; flex: 0 0 auto; }
+  .brand { display: flex; flex-direction: column; }
+  .brand .name {
+    font-weight: 600; font-size: 13px; letter-spacing: 3px;
+    color: var(--charcoal); text-transform: uppercase;
+  }
+  .brand h1 {
+    margin: 0; font-weight: 300; font-size: 26px;
+    text-transform: uppercase; letter-spacing: -1px; color: var(--charcoal);
+  }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 18px; font-size: 13px; }
+  .header-right .user { font-weight: 600; color: var(--charcoal); }
+
+  .btn {
+    background: var(--charcoal); color: var(--white); border: none;
+    font-family: inherit; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2px; font-size: 12px; padding: 11px 22px; cursor: pointer;
+  }
+  .btn:hover { background: #2f343d; }
+  .btn.ghost {
+    background: transparent; color: var(--charcoal);
+    border: 1px solid var(--charcoal);
+  }
+  .btn.ghost:hover { background: var(--panel); }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── Login ── */
+  #login-view {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--charcoal);
+  }
+  .login-card {
+    background: var(--white); padding: 48px 44px; width: 400px; max-width: 92vw;
+  }
+  .login-card h2 {
+    font-weight: 300; text-transform: uppercase; letter-spacing: -1px;
+    color: var(--charcoal); margin: 18px 0 4px; font-size: 24px;
+  }
+  .login-card p.sub { font-size: 13px; margin: 0 0 24px; color: #707783; }
+  .login-card label {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--charcoal); margin: 16px 0 4px;
+  }
+  .login-card input {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--border);
+    font-family: inherit; font-size: 14px; background: var(--lighter);
+  }
+  .login-card input:focus { outline: 2px solid var(--charcoal); }
+  .login-card .btn { width: 100%; margin-top: 26px; }
+  .login-switch { margin-top: 18px; font-size: 13px; text-align: center; }
+  .login-switch a { cursor: pointer; }
+  #login-error { color: #a33; font-size: 13px; margin-top: 14px; min-height: 18px; }
+
+  /* ── Tabs ── */
+  nav.tabs {
+    background: var(--charcoal); padding: 0 32px;
+    display: flex; flex-wrap: wrap;
+  }
+  nav.tabs button {
+    background: transparent; border: none; color: rgba(255,255,255,.65);
+    font-family: inherit; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; font-size: 12px; padding: 15px 18px; cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+  nav.tabs button:hover { color: var(--white); }
+  nav.tabs button.active { color: var(--white); border-bottom-color: var(--white); }
+  nav.tabs button .cnt {
+    background: var(--white); color: var(--charcoal); font-size: 10px;
+    padding: 1px 7px; margin-left: 7px; font-weight: 700;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 20px 32px 8px;
+  }
+  .toolbar-row {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  }
+  .toolbar input[type=search] {
+    padding: 10px 14px; border: 1px solid var(--border); font-family: inherit;
+    font-size: 14px; width: 280px; background: var(--white);
+  }
+  .chip {
+    background: var(--white); border: 1px solid var(--border); color: var(--body);
+    font-family: inherit; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; padding: 9px 16px; cursor: pointer;
+  }
+  .chip.active { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .meta { font-size: 12px; color: #707783; }
+
+  /* ── Lead cards ── */
+  #list { padding: 12px 32px 60px; max-width: 1100px; }
+  .lead {
+    background: var(--white); border: 1px solid var(--border);
+    margin-bottom: 14px; padding: 20px 24px;
+    display: flex; gap: 20px;
+  }
+  .lead.contacted { background: var(--panel); }
+  .lead .main { flex: 1; min-width: 0; }
+  .lead h3 {
+    margin: 0 0 2px; font-weight: 600; font-size: 16px;
+    text-transform: uppercase; letter-spacing: .5px; color: var(--charcoal);
+  }
+  .lead h3 .toptitle {
+    font-weight: 400; text-transform: none; letter-spacing: 0;
+    font-size: 14px; color: #707783;
+  }
+  .lead .loc { font-size: 13px; color: #707783; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; }
+  .badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 3px 10px; background: var(--light); border: 1px solid var(--border);
+    color: var(--charcoal);
+  }
+  .badge.score { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
+  .badge.new { border-color: var(--charcoal); }
+  .contactrow { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; margin-top: 8px; }
+  .contactrow .none { color: #9aa0aa; font-style: italic; }
+  .vac-toggle {
+    margin-top: 12px; background: none; border: none; color: var(--link);
+    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0;
+  }
+  .vacs { margin-top: 10px; border-top: 1px solid var(--border); }
+  .vac { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .vac .t { font-weight: 600; font-size: 14px; }
+  .vac .m { font-size: 12px; color: #707783; margin: 2px 0; }
+  .vac .d { font-size: 13px; }
+
+  .side { flex: 0 0 240px; display: flex; flex-direction: column; gap: 10px; }
+  .check {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--charcoal); user-select: none;
+  }
+  .check input { width: 20px; height: 20px; accent-color: #434a55; cursor: pointer; }
+  .who { font-size: 12px; color: #707783; }
+  .side textarea {
+    width: 100%; min-height: 64px; border: 1px solid var(--border);
+    font-family: inherit; font-size: 13px; padding: 8px; resize: vertical;
+    background: var(--lighter);
+  }
+  .side textarea:focus { outline: 2px solid var(--charcoal); }
+
+  /* ── Uitkomst-keuze (verplicht bij 'gecontacteerd') ── */
+  .outcome-panel {
+    border: 2px solid var(--charcoal); padding: 12px; background: var(--lighter);
+  }
+  .outcome-panel .q {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--charcoal); margin-bottom: 8px;
+  }
+  .outcome-panel button {
+    display: block; width: 100%; margin-bottom: 6px; padding: 9px 10px;
+    background: var(--white); border: 1px solid var(--border); color: var(--body);
+    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left;
+  }
+  .outcome-panel button:hover { background: var(--charcoal); color: var(--white); }
+  .outcome-panel .cancel {
+    border: none; background: none; color: #707783; font-size: 12px;
+    text-align: center; margin-bottom: 0; font-weight: 400;
+  }
+  .outcome-panel .cancel:hover { background: none; color: var(--charcoal); text-decoration: underline; }
+  .badge.outcome-pos { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
+  .badge.outcome-neg { color: #707783; }
+
+  /* ── Statistieken (alleen management) ── */
+  .stats-wrap { padding: 12px 32px 60px; max-width: 1100px; }
+  .stats-section {
+    background: var(--white); border: 1px solid var(--border);
+    padding: 24px; margin-bottom: 18px;
+  }
+  .stats-section h2 {
+    margin: 0 0 16px; font-weight: 300; font-size: 20px;
+    text-transform: uppercase; letter-spacing: -.5px; color: var(--charcoal);
+  }
+  table.stats { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.stats th {
+    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--charcoal); padding: 8px 10px;
+    border-bottom: 2px solid var(--charcoal); white-space: nowrap;
+  }
+  table.stats td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.stats td.num { text-align: right; font-weight: 600; }
+  table.stats tr.inactive td { color: #9aa0aa; }
+  .feed-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .feed-item .when { color: #707783; font-size: 12px; }
+
+  .empty { padding: 60px 32px; text-align: center; color: #707783; }
+  .empty h3 { font-weight: 300; text-transform: uppercase; color: var(--charcoal); }
+
+  footer {
+    text-align: center; font-size: 11px; color: #575C65;
+    padding: 26px; border-top: 1px solid var(--border); background: var(--white);
+  }
+
+  @media (max-width: 760px) {
+    .lead { flex-direction: column; }
+    .side { flex: 1; }
+    header, .toolbar, #list, nav.tabs { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="login-view">
+  <div class="login-card">
+    <svg class="logo-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-label="United Consulting">
+      <rect x="2" y="2" width="36" height="36" fill="none" stroke="#434a55" stroke-width="4"/>
+      <rect x="13" y="13" width="14" height="14" fill="#434a55"/>
+    </svg>
+    <h2>Lead Radar.</h2>
+    <p class="sub">United Consulting™ — dagelijkse leads voor sales.</p>
+
+    <form id="login-form">
+      <div id="name-field" style="display:none">
+        <label for="f-name">Naam</label>
+        <input id="f-name" type="text" autocomplete="name" placeholder="Voornaam Naam">
+      </div>
+      <label for="f-email">Email</label>
+      <input id="f-email" type="email" autocomplete="email" required placeholder="jij@unitedconsulting.be">
+      <label for="f-pass">Wachtwoord</label>
+      <input id="f-pass" type="password" autocomplete="current-password" required minlength="6">
+      <button class="btn" type="submit" id="login-btn">Inloggen</button>
+    </form>
+    <div id="login-error"></div>
+    <div class="login-switch">
+      <span id="switch-text">Nog geen account?</span>
+      <a id="switch-link">Registreer</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="app-view" style="display:none">
+  <header>
+    <svg class="logo-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-label="United Consulting">
+      <rect x="2" y="2" width="36" height="36" fill="none" stroke="#434a55" stroke-width="4"/>
+      <rect x="13" y="13" width="14" height="14" fill="#434a55"/>
+    </svg>
+    <div class="brand">
+      <span class="name">United Consulting™</span>
+      <h1>Lead Radar.</h1>
+    </div>
+    <div class="header-right">
+      <span class="user" id="user-name"></span>
+      <button class="btn ghost" id="logout-btn">Uitloggen</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div class="toolbar">
+    <div class="toolbar-row">
+      <input type="search" id="search" placeholder="Zoek bedrijf, plaats of functie…">
+      <button class="chip active" data-filter="all">Alle</button>
+      <button class="chip" data-filter="todo">Te contacteren</button>
+      <button class="chip" data-filter="done">Gecontacteerd</button>
+      <div class="spacer"></div>
+      <span class="meta" id="last-update"></span>
+      <button class="btn ghost" id="export-btn">Exporteer naar Excel</button>
+    </div>
+    <div class="toolbar-row">
+      <span class="meta" style="text-transform:uppercase;letter-spacing:1px;font-weight:700;font-size:11px">Regio</span>
+      <button class="chip active" data-region="alle">Alle regio's</button>
+      <button class="chip" data-region="Antwerpen / Limburg">Antwerpen/Limburg</button>
+      <button class="chip" data-region="Oost & West-Vlaanderen">Oost &amp; West</button>
+      <button class="chip" data-region="Brussel / Vlaams-Brabant">Brussel/Vl-Brabant</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>
+    WWW.UNITEDCONSULTING.BE<br>
+    United Consulting™ &#9632; Galileilaan 18 &#9632; 2845 Niel &#9632; 003234483864 &#9632; info@unitedconsulting.be
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════
+   CONFIGURATIE — vul deze twee waarden in (zie README):
+   Supabase → Project Settings → API
+   ══════════════════════════════════════════════════════ */
+const SUPABASE_URL      = "https://smwtjnmvtljqproycuwp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtd3Rqbm12dGxqcXByb3ljdXdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMzA3MjksImV4cCI6MjA5NjgwNjcyOX0.LhJJ3aNf7tTTReIoWAdSQe7GOo2QSXbLSQUDXZW7DHk";
+
+const BUSINESS_UNITS = ["Supply Chain", "Finance", "Marketing", "HR", "Business Support"];
+const ARCHIVE_DAYS   = 30;
+
+// Ruwe scores worden getoond op 10. Max = basis 5 + kernwoorden 6 +
+// email 3 + telefoon 2 + knelpunt 1 = 17.
+// Pas je de gewichten in config.py aan? Werk dan ook dit maximum bij.
+const SCORE_MAX = 17;
+const score10   = (s) => Math.min(10, Math.round((s / SCORE_MAX) * 100) / 10);
+const score10Txt = (s) => String(score10(s)).replace(".", ",");
+
+// Verplichte uitkomst bij "gecontacteerd" — positief telt mee in de rapportering
+const OUTCOMES = {
+  lead_aangemaakt: { label: "Lead aangemaakt",  icon: "&#10004;", positive: true  },
+  meeting_gepland: { label: "Meeting ingepland", icon: "&#128197;", positive: true  },
+  geen_interesse:  { label: "Geen interesse",    icon: "&#10006;", positive: false },
+};
+
+// Demo-modus: open index.html?demo om het dashboard met voorbeelddata
+// te bekijken zonder database (handig om aan het team te tonen)
+const DEMO = new URLSearchParams(location.search).has("demo");
+
+// Setup-guard: toon duidelijke instructie zolang de config niet ingevuld is
+if (!DEMO && !SUPABASE_URL.startsWith("https://")) {
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelector(".login-card").innerHTML = `
+      <h2 style="font-weight:300;text-transform:uppercase;color:#434a55">Bijna klaar.</h2>
+      <p style="font-size:14px">Het dashboard is nog niet gekoppeld aan de database.</p>
+      <p style="font-size:14px">Open <strong>docs/index.html</strong> en vul bovenaan het
+      <code>&lt;script&gt;</code>-blok de twee waarden in:
+      <code>SUPABASE_URL</code> en <code>SUPABASE_ANON_KEY</code>
+      (zie stap 2 van de README).</p>`;
+  });
+  throw new Error("Supabase-config ontbreekt");
+}
+
+const db = DEMO ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let leads       = [];
+let topTitles   = {};   // lead_id -> functietitel van de eerste vacature
+let activeTab   = BUSINESS_UNITS[0];
+let activeFilter= "all";
+let regionFilter= "alle";
+let searchTerm  = "";
+let isRegister  = false;
+let isManager   = false;
+let statsPeriod = "week";   // week | maand | alles
+let blockedList = [];       // [{raw, norm}] — geweerde bedrijven (weerlijst)
+let blockedTableOk = true;  // false zolang de v4-migratie nog niet draaide
+let assignmentsMap = {};    // "BU||regio" -> {manager_name, manager_email}
+let assignmentsOk  = true;  // false zolang de v5-migratie nog niet draaide
+const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant"];
+const vacCache  = {};       // lead_id -> vacancies[]
+const expanded  = new Set();
+const pendingOutcome = new Set();  // leads die wachten op uitkomst-keuze
+
+/* ── Auth ── */
+const $ = (id) => document.getElementById(id);
+
+$("switch-link").addEventListener("click", () => {
+  isRegister = !isRegister;
+  $("name-field").style.display = isRegister ? "block" : "none";
+  $("login-btn").textContent    = isRegister ? "Registreer" : "Inloggen";
+  $("switch-text").textContent  = isRegister ? "Al een account?" : "Nog geen account?";
+  $("switch-link").textContent  = isRegister ? "Log in" : "Registreer";
+  $("login-error").textContent  = "";
+});
+
+$("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("login-error").textContent = "";
+  $("login-btn").disabled = true;
+  const email = $("f-email").value.trim();
+  const pass  = $("f-pass").value;
+  try {
+    if (isRegister) {
+      const name = $("f-name").value.trim();
+      if (!name) throw new Error("Vul je naam in.");
+      const { error } = await db.auth.signUp({
+        email, password: pass,
+        options: { data: { full_name: name } },
+      });
+      if (error) throw error;
+      // Als email-bevestiging uitstaat is er meteen een sessie; anders melden
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) {
+        $("login-error").textContent = "Check je mailbox om je account te bevestigen.";
+        $("login-btn").disabled = false;
+        return;
+      }
+    } else {
+      const { error } = await db.auth.signInWithPassword({ email, password: pass });
+      if (error) throw error;
+    }
+  } catch (err) {
+    $("login-error").textContent = vertaalFout(err.message);
+    $("login-btn").disabled = false;
+  }
+});
+
+function vertaalFout(msg) {
+  if (/invalid login/i.test(msg))      return "Ongeldige login. Controleer email en wachtwoord.";
+  if (/already registered/i.test(msg)) return "Dit emailadres heeft al een account.";
+  if (/at least 6/i.test(msg))         return "Wachtwoord moet minstens 6 tekens zijn.";
+  return msg;
+}
+
+$("logout-btn").addEventListener("click", () =>
+  DEMO ? (location.search = "") : db.auth.signOut());
+
+if (DEMO) {
+  document.addEventListener("DOMContentLoaded", () => {
+    currentUser = { email: "demo@unitedconsulting.be",
+                    user_metadata: { full_name: "Demo Gebruiker" } };
+    isManager = true;   // in demo is de Statistieken-tab zichtbaar
+    $("login-view").style.display = "none";
+    $("app-view").style.display   = "block";
+    $("user-name").textContent    = "Demo Gebruiker (voorbeelddata)";
+    leads = demoLeads();
+    leads.forEach(l => {
+      vacCache[l.id]  = l._vacs;
+      topTitles[l.id] = l._vacs[0]?.title || "";
+    });
+    blockedList = [{ raw: "Voorbeeld Consulting", norm: normCompany("Voorbeeld Consulting") }];
+    assignmentsMap = {
+      "Finance||Oost & West-Vlaanderen": { manager_name: "Sofie Peeters", manager_email: "sofie@unitedconsulting.be" },
+      "HR||Brussel / Vlaams-Brabant":    { manager_name: "Jan De Smet",   manager_email: "jan@unitedconsulting.be" },
+    };
+    $("last-update").textContent = "Demo-modus — voorbeelddata";
+    render();
+  });
+} else {
+  db.auth.onAuthStateChange((event, session) => {
+    currentUser = session ? session.user : null;
+    if (currentUser) {
+      $("login-view").style.display = "none";
+      $("app-view").style.display   = "block";
+      $("user-name").textContent =
+        currentUser.user_metadata?.full_name || currentUser.email;
+      checkManager();
+      loadBlocked().then(render);
+      loadAssignments().then(render);
+      loadLeads();
+      subscribeRealtime();
+    } else {
+      $("login-view").style.display = "flex";
+      $("app-view").style.display   = "none";
+      $("login-btn").disabled = false;
+    }
+  });
+}
+
+function demoLeads() {
+  const today = new Date().toISOString().slice(0, 10);
+  const d = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  let n = 0;
+  const mk = (bu, company, loc, region, opts = {}) => ({
+    id: "demo-" + (++n), company, business_unit: bu, region, location: loc,
+    website: opts.web || "", email: opts.email || "", phone: opts.phone || "",
+    contact_name: opts.contact_name || null, contact_title: opts.contact_title || null,
+    score: opts.score || 10, vacancy_count: (opts.vacs || ["Vacature"]).length,
+    knelpunt: !!opts.knelpunt, first_seen: opts.first || today, last_seen: opts.last || today,
+    contacted: !!opts.by, contacted_by: opts.by || null,
+    contacted_at: opts.by ? new Date().toISOString() : null,
+    outcome: opts.outcome || null, note: opts.note || null,
+    _vacs: (opts.vacs || ["Vacature"]).map(t => ({
+      title: t, source: "VDAB", url: "#", posted: today,
+      location: loc, description: "Voorbeeldomschrijving van de opdracht.",
+    })),
+  });
+  return [
+    mk("Supply Chain", "Logiparts NV", "Antwerpen", "Antwerpen / Limburg",
+       { score: 21, email: "hr@logiparts.be", phone: "03 444 55 66", web: "https://logiparts.be",
+         knelpunt: true, vacs: ["Supply Chain Planner", "Demand Planner", "Logistiek Manager"] }),
+    mk("Supply Chain", "Fresh Foods Belgium", "Mechelen", "Antwerpen / Limburg",
+       { score: 14, web: "https://freshfoods.example", vacs: ["Warehouse Supervisor"] }),
+    mk("Finance", "Atlas Bouwgroep", "Gent", "Oost & West-Vlaanderen",
+       { score: 18, email: "info@atlasbouw.be", vacs: ["GL Accountant", "Financial Controller"],
+         by: "Sofie Peeters", outcome: "meeting_gepland",
+         note: "Gebeld — meeting op dinsdag 10u." }),
+    mk("Finance", "Medix Pharma", "Leuven", "Brussel / Vlaams-Brabant",
+       { score: 12, phone: "016 22 33 44", email: "k.devos@medixpharma.be",
+         contact_name: "Karen De Vos", contact_title: "HR Business Partner",
+         vacs: ["Credit Controller"] }),
+    mk("Marketing", "Brouwerij Den Toren", "Brugge", "Oost & West-Vlaanderen",
+       { score: 15, email: "jobs@dentoren.be", web: "https://dentoren.be",
+         vacs: ["Digital Marketeer", "Content Creator"] }),
+    mk("HR", "TechWorks BV", "Brussel", "Brussel / Vlaams-Brabant",
+       { score: 19, email: "hr@techworks.be", phone: "02 111 22 33",
+         vacs: ["HR Business Partner", "Payroll Officer"], knelpunt: true }),
+    mk("Business Support", "Kantoor Verlinden", "Hasselt", "Antwerpen / Limburg",
+       { score: 11, vacs: ["Management Assistant"] }),
+    mk("HR", "Oude Lead NV", "Aalst", "Oost & West-Vlaanderen",
+       { score: 9, first: d(45), last: d(40), vacs: ["HR Officer"] }),
+  ];
+}
+
+/* ── Manager-check ── */
+async function checkManager() {
+  const { data } = await db.from("managers").select("email")
+    .eq("email", currentUser.email).maybeSingle();
+  isManager = !!data;
+  render();
+}
+
+/* ── Weerlijst (geweerde bedrijven) ── */
+function normCompany(s) {
+  return String(s || "").toLowerCase()
+    .replace(/\b(nv|bv|bvba|cvba|vzw|sa|sprl|srl|gcv)\b\.?/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+function isBlockedCompany(name) {
+  const n = normCompany(name);
+  if (!n) return false;
+  return blockedList.some(b =>
+    b.norm.length >= 4 && (b.norm === n || n.includes(b.norm) || b.norm.includes(n)));
+}
+
+async function loadBlocked() {
+  const { data, error } = await db.from("blocked_companies")
+    .select("company").order("company");
+  if (error) { blockedTableOk = false; blockedList = []; return; }
+  blockedTableOk = true;
+  blockedList = (data || []).map(r => ({ raw: r.company, norm: normCompany(r.company) }));
+}
+
+async function loadAssignments() {
+  const { data, error } = await db.from("assignments")
+    .select("business_unit,region,manager_name,manager_email");
+  if (error) { assignmentsOk = false; assignmentsMap = {}; return; }
+  assignmentsOk = true;
+  assignmentsMap = {};
+  for (const a of (data || [])) {
+    assignmentsMap[`${a.business_unit}||${a.region}`] =
+      { manager_name: a.manager_name || "", manager_email: a.manager_email || "" };
+  }
+}
+
+/* ── Data ── */
+async function loadLeads() {
+  const { data, error } = await db
+    .from("leads").select("*")
+    .order("score", { ascending: false })
+    .order("last_seen", { ascending: false })
+    .limit(5000);
+  if (error) { $("list").innerHTML = `<div class="empty">Fout bij laden: ${error.message}</div>`; return; }
+  leads = data || [];
+  const newest = leads.reduce((m, l) => l.last_seen > m ? l.last_seen : m, "");
+  $("last-update").textContent = newest ? `Laatste update: ${fmtDate(newest)}` : "";
+  render();
+  loadTopTitles();
+}
+
+async function loadTopTitles() {
+  // Eerste functietitel per lead (voor in de kaartkop)
+  const { data } = await db.from("vacancies")
+    .select("lead_id,title,created_at")
+    .order("created_at", { ascending: true })
+    .limit(5000);
+  topTitles = {};
+  for (const v of (data || [])) {
+    if (!(v.lead_id in topTitles)) topTitles[v.lead_id] = v.title;
+  }
+  render();
+}
+
+let channel = null;
+function subscribeRealtime() {
+  if (channel) return;
+  channel = db.channel("leads-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, (payload) => {
+      if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
+        const i = leads.findIndex(l => l.id === payload.new.id);
+        if (i >= 0) leads[i] = payload.new; else leads.push(payload.new);
+        render();
+      }
+    })
+    .subscribe();
+}
+
+/* ── Helpers ── */
+function daysAgo(dateStr) {
+  return Math.floor((Date.now() - new Date(dateStr + "T00:00:00")) / 86400000);
+}
+function isArchived(l) { return daysAgo(l.last_seen) > ARCHIVE_DAYS; }
+function fmtDate(d) {
+  const n = daysAgo(d);
+  if (n <= 0) return "vandaag";
+  if (n === 1) return "gisteren";
+  return new Date(d + "T00:00:00").toLocaleDateString("nl-BE",
+    { day: "numeric", month: "short", year: "numeric" });
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g,
+    c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+/* ── Tabs & filters ── */
+function buildTabs() {
+  const tabs = [...BUSINESS_UNITS, "Archief"];
+  if (isManager) tabs.push("Statistieken");
+  $("tabs").innerHTML = tabs.map(t => {
+    const todo = t === "Statistieken" ? 0 : leads.filter(l =>
+      (t === "Archief" ? isArchived(l) : l.business_unit === t && !isArchived(l))
+      && !l.contacted).length;
+    return `<button class="${t === activeTab ? "active" : ""}" data-tab="${esc(t)}">
+      ${esc(t)}${todo ? `<span class="cnt">${todo}</span>` : ""}</button>`;
+  }).join("");
+  $("tabs").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => { activeTab = b.dataset.tab; render(); }));
+}
+
+document.querySelectorAll(".toolbar [data-filter]").forEach(c =>
+  c.addEventListener("click", () => {
+    document.querySelectorAll(".toolbar [data-filter]").forEach(x => x.classList.remove("active"));
+    c.classList.add("active");
+    activeFilter = c.dataset.filter;
+    render();
+  }));
+
+document.querySelectorAll(".toolbar [data-region]").forEach(c =>
+  c.addEventListener("click", () => {
+    document.querySelectorAll(".toolbar [data-region]").forEach(x => x.classList.remove("active"));
+    c.classList.add("active");
+    regionFilter = c.dataset.region;
+    render();
+  }));
+
+$("search").addEventListener("input", (e) => {
+  searchTerm = e.target.value.toLowerCase();
+  render();
+});
+
+/* ── Render ── */
+function visibleLeads() {
+  let rows = activeTab === "Archief"
+    ? leads.filter(isArchived)
+    : leads.filter(l => l.business_unit === activeTab && !isArchived(l));
+  rows = rows.filter(l => !isBlockedCompany(l.company));
+  if (activeFilter === "todo") rows = rows.filter(l => !l.contacted);
+  if (activeFilter === "done") rows = rows.filter(l => l.contacted);
+  if (regionFilter !== "alle") rows = rows.filter(l => l.region === regionFilter);
+  if (searchTerm) {
+    rows = rows.filter(l =>
+      (l.company + " " + (l.location || "") + " " + (l.region || "") + " " +
+       (l.note || "")).toLowerCase().includes(searchTerm));
+  }
+  return rows;
+}
+
+function render() {
+  buildTabs();
+  const isStats = activeTab === "Statistieken";
+  document.querySelector(".toolbar").style.display = isStats ? "none" : "flex";
+  if (isStats) { renderStats(); return; }
+  const rows = visibleLeads();
+  if (!rows.length) {
+    $("list").innerHTML = `<div class="empty"><h3>Geen leads.</h3>
+      <p>${activeTab === "Archief" ? "Het archief is leeg." :
+           "Geen leads die aan de filters voldoen — kom morgen terug na de volgende scan."}</p></div>`;
+    return;
+  }
+  $("list").innerHTML = rows.map(cardHtml).join("");
+  bindCardEvents();
+}
+
+function cardHtml(l) {
+  const isNew  = daysAgo(l.first_seen) <= 0;
+  const isOpen = expanded.has(l.id);
+  const vacs   = vacCache[l.id];
+
+  return `<div class="lead ${l.contacted ? "contacted" : ""}" data-id="${l.id}">
+    <div class="main">
+      <h3>${esc(l.company)}${topTitles[l.id]
+        ? ` <span class="toptitle">— ${esc(topTitles[l.id])}</span>` : ""}</h3>
+      <div class="loc">${esc(l.location || "")}${l.location && l.region ? " — " : ""}${esc(l.region || "")}</div>
+      <div class="badges">
+        <span class="badge score">Score ${score10Txt(l.score)}/10</span>
+        <span class="badge">${l.vacancy_count} vacature${l.vacancy_count > 1 ? "s" : ""}</span>
+        ${isNew ? `<span class="badge new">Nieuw</span>` : ""}
+        ${l.knelpunt ? `<span class="badge">&#128293; Knelpunt</span>` : ""}
+        ${activeTab === "Archief" ? `<span class="badge">${esc(l.business_unit)}</span>` : ""}
+      </div>
+      <div class="contactrow">
+        ${l.contact_name ? `<span>&#128100; <strong>${esc(l.contact_name)}</strong>${l.contact_title ? ` — ${esc(l.contact_title)}` : ""} <span style="color:#9aa0aa">(CRM)</span></span>` : ""}
+        ${l.email   ? `<span>&#9993; <a href="mailto:${esc(l.email)}">${esc(l.email)}</a></span>` : `<span class="none">geen email gevonden</span>`}
+        ${l.phone   ? `<span>&#9742; <a href="tel:${esc(l.phone.replace(/\s/g, ""))}">${esc(l.phone)}</a></span>` : `<span class="none">geen telefoon gevonden</span>`}
+        ${l.website ? `<span>&#127760; <a href="${esc(l.website)}" target="_blank" rel="noopener">${esc(l.website.replace(/^https?:\/\//, ""))}</a></span>` : ""}
+      </div>
+      <button class="vac-toggle" data-act="vacs">${isOpen ? "&#9662;" : "&#9656;"} Vacatures bekijken (${l.vacancy_count})</button>
+      ${isOpen ? vacListHtml(vacs) : ""}
+    </div>
+    <div class="side">
+      <label class="check">
+        <input type="checkbox" data-act="contact" ${l.contacted || pendingOutcome.has(l.id) ? "checked" : ""}>
+        Gecontacteerd
+      </label>
+      ${pendingOutcome.has(l.id) ? `
+      <div class="outcome-panel">
+        <div class="q">Wat was het resultaat?</div>
+        ${Object.entries(OUTCOMES).map(([key, o]) =>
+          `<button data-act="outcome" data-outcome="${key}">${o.icon} ${o.label}</button>`).join("")}
+        <button class="cancel" data-act="outcome-cancel">Annuleer</button>
+      </div>` : ""}
+      ${l.contacted && l.outcome ? `
+      <span class="badge ${OUTCOMES[l.outcome]?.positive ? "outcome-pos" : "outcome-neg"}">
+        ${OUTCOMES[l.outcome]?.icon || ""} ${OUTCOMES[l.outcome]?.label || esc(l.outcome)}</span>` : ""}
+      <span class="who">${l.contacted && l.contacted_by
+        ? `door ${esc(l.contacted_by)} op ${new Date(l.contacted_at).toLocaleDateString("nl-BE")}` : ""}</span>
+      <textarea data-act="note" placeholder="Notitie voor het team…">${esc(l.note || "")}</textarea>
+      <span class="who">Eerst gezien: ${fmtDate(l.first_seen)} &middot; laatst: ${fmtDate(l.last_seen)}</span>
+    </div>
+  </div>`;
+}
+
+function vacListHtml(vacs) {
+  if (!vacs) return `<div class="vacs"><div class="vac"><span class="m">Laden…</span></div></div>`;
+  if (!vacs.length) return `<div class="vacs"><div class="vac"><span class="m">Geen vacaturedetails beschikbaar.</span></div></div>`;
+  return `<div class="vacs">` + vacs.map(v => `
+    <div class="vac">
+      <div class="t">${v.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>` : esc(v.title)}</div>
+      <div class="m">${esc(v.source || "")}${v.location ? " &middot; " + esc(v.location) : ""}${v.posted ? " &middot; " + esc(v.posted) : ""}</div>
+      ${v.description ? `<div class="d">${esc(v.description)}</div>` : ""}
+    </div>`).join("") + `</div>`;
+}
+
+/* ── Card-acties ── */
+function bindCardEvents() {
+  document.querySelectorAll(".lead").forEach(card => {
+    const id   = card.dataset.id;
+    const lead = leads.find(l => l.id === id);
+
+    card.querySelector("[data-act=vacs]").addEventListener("click", async () => {
+      if (expanded.has(id)) { expanded.delete(id); render(); return; }
+      expanded.add(id);
+      render();
+      if (!vacCache[id]) {
+        if (DEMO) { vacCache[id] = []; render(); return; }
+        const { data } = await db.from("vacancies").select("*").eq("lead_id", id);
+        vacCache[id] = data || [];
+        render();
+      }
+    });
+
+    card.querySelector("[data-act=contact]").addEventListener("change", async (e) => {
+      const checked = e.target.checked;
+      if (checked && !lead.contacted) {
+        // Nog niet opslaan — eerst verplicht een uitkomst kiezen
+        pendingOutcome.add(id);
+        render();
+        return;
+      }
+      if (!checked && pendingOutcome.has(id)) {
+        pendingOutcome.delete(id);
+        render();
+        return;
+      }
+      if (!checked && lead.contacted) {
+        if (!confirm(`"${lead.company}" terugzetten naar niet-gecontacteerd?`)) {
+          render(); return;
+        }
+        lead.contacted = false; lead.contacted_by = null;
+        lead.contacted_at = null; lead.outcome = null;
+        render();
+        if (DEMO) return;
+        const { error } = await db.from("leads").update({
+          contacted: false, contacted_by: null, contacted_at: null, outcome: null,
+        }).eq("id", id);
+        if (error) { alert("Opslaan mislukt: " + error.message); loadLeads(); }
+      }
+    });
+
+    card.querySelectorAll("[data-act=outcome]").forEach(btn =>
+      btn.addEventListener("click", async () => {
+        const outcome = btn.dataset.outcome;
+        const name = currentUser.user_metadata?.full_name || currentUser.email;
+        pendingOutcome.delete(id);
+        lead.contacted    = true;
+        lead.contacted_by = name;
+        lead.contacted_at = new Date().toISOString();
+        lead.outcome      = outcome;
+        render();
+        if (DEMO) return;
+        const { error } = await db.from("leads").update({
+          contacted: true, contacted_by: name,
+          contacted_at: lead.contacted_at, outcome,
+        }).eq("id", id);
+        if (error) { alert("Opslaan mislukt: " + error.message); loadLeads(); }
+      }));
+
+    const cancelBtn = card.querySelector("[data-act=outcome-cancel]");
+    if (cancelBtn) cancelBtn.addEventListener("click", () => {
+      pendingOutcome.delete(id);
+      render();
+    });
+
+    const ta = card.querySelector("[data-act=note]");
+    ta.addEventListener("blur", async () => {
+      if (ta.value === (lead.note || "")) return;
+      lead.note = ta.value;
+      if (DEMO) return;
+      const { error } = await db.from("leads").update({ note: ta.value }).eq("id", id);
+      if (error) alert("Notitie opslaan mislukt: " + error.message);
+    });
+  });
+}
+
+/* ── Statistieken (alleen management) ──
+   Berekend uit de ACTUELE leads: een lead telt precies één keer mee,
+   bij de persoon die er nu als contactpersoon op staat. Wordt een lead
+   uitgevinkt, dan verdwijnt hij uit de cijfers tot iemand opnieuw
+   contact opneemt. */
+function renderStats() {
+  $("list").innerHTML = statsHtml();
+  document.querySelectorAll("[data-period]").forEach(b =>
+    b.addEventListener("click", () => { statsPeriod = b.dataset.period; render(); }));
+  const ex = $("stats-export");
+  if (ex) ex.addEventListener("click", exportStats);
+  const addBtn = $("block-add");
+  if (addBtn) addBtn.addEventListener("click", addBlockedCompany);
+  const inp = $("block-input");
+  if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") addBlockedCompany(); });
+  document.querySelectorAll("[data-unblock]").forEach(a =>
+    a.addEventListener("click", () => removeBlockedCompany(a.dataset.unblock)));
+  const asgSave = $("asg-save");
+  if (asgSave) asgSave.addEventListener("click", saveAssignments);
+}
+
+function exportStats() {
+  const { list, totV, totP } = statsData();
+  const periodLbl = { week: "laatste 7 dagen", maand: "laatste 30 dagen",
+                      alles: "alle periodes" }[statsPeriod];
+  const rows = list.map(u => ({
+    "NAAM":              u.name,
+    "GECONTACTEERD":     u.verwerkt,
+    "LEAD AANGEMAAKT":   u.lead_aangemaakt,
+    "MEETING INGEPLAND": u.meeting_gepland,
+    "GEEN INTERESSE":    u.geen_interesse,
+    "POSITIEF":          u.lead_aangemaakt + u.meeting_gepland,
+    "POSITIEF %":        u.verwerkt ? Math.round(100 * (u.lead_aangemaakt + u.meeting_gepland) / u.verwerkt) + "%" : "",
+    "LAATSTE CONTACT":   u.laatst ? new Date(u.laatst).toLocaleDateString("nl-BE") : "",
+  }));
+  rows.push({});
+  rows.push({ "NAAM": `TOTAAL (${periodLbl})`, "GECONTACTEERD": totV, "POSITIEF": totP });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows.length > 2 ? rows : [{ "NAAM": "Nog geen data" }]);
+  XLSX.utils.book_append_sheet(wb, ws, "Statistieken");
+  XLSX.writeFile(wb, `Lead_Radar_Statistieken_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function inPeriod(dateStr) {
+  if (statsPeriod === "alles" || !dateStr) return statsPeriod === "alles";
+  const days = statsPeriod === "week" ? 7 : 30;
+  return new Date(dateStr).getTime() >= Date.now() - days * 86400000;
+}
+
+function statsData() {
+  const contacted = leads.filter(l => l.contacted && l.contacted_by && inPeriod(l.contacted_at));
+  const allTime   = leads.filter(l => l.contacted && l.contacted_by);
+
+  // Per persoon: huidige stand van zaken
+  const users = {};
+  for (const l of allTime) {
+    const u = users[l.contacted_by] ??= {
+      name: l.contacted_by, verwerkt: 0,
+      lead_aangemaakt: 0, meeting_gepland: 0, geen_interesse: 0,
+      laatst: l.contacted_at,
+    };
+    if (l.contacted_at > u.laatst) u.laatst = l.contacted_at;
+  }
+  for (const l of contacted) {
+    const u = users[l.contacted_by];
+    u.verwerkt++;
+    if (l.outcome && u[l.outcome] !== undefined) u[l.outcome]++;
+  }
+  const list = Object.values(users).sort((a, b) => b.verwerkt - a.verwerkt);
+
+  return {
+    list,
+    allTime,
+    totV: contacted.length,
+    totP: contacted.filter(l => OUTCOMES[l.outcome]?.positive).length,
+  };
+}
+
+function statsHtml() {
+  const { list, allTime, totV, totP } = statsData();
+
+  const chip = (p, lbl) =>
+    `<button class="chip ${statsPeriod === p ? "active" : ""}" data-period="${p}">${lbl}</button>`;
+
+  const rowsHtml = list.map(u => {
+    const pos = u.lead_aangemaakt + u.meeting_gepland;
+    const inactiveDays = Math.floor((Date.now() - new Date(u.laatst)) / 86400000);
+    return `<tr class="${inactiveDays > 14 ? "inactive" : ""}">
+      <td>${esc(u.name)}</td>
+      <td class="num">${u.verwerkt}</td>
+      <td class="num">${u.lead_aangemaakt}</td>
+      <td class="num">${u.meeting_gepland}</td>
+      <td class="num">${u.geen_interesse}</td>
+      <td class="num">${u.verwerkt ? Math.round(100 * pos / u.verwerkt) + "%" : "—"}</td>
+      <td>${inactiveDays <= 0 ? "vandaag" : inactiveDays === 1 ? "gisteren" : inactiveDays + " dagen geleden"}</td>
+    </tr>`;
+  }).join("");
+
+  // Recent gecontacteerde leads (actuele stand — geen historiek)
+  const recent = [...allTime]
+    .sort((a, b) => (b.contacted_at || "").localeCompare(a.contacted_at || ""))
+    .slice(0, 15)
+    .map(l => {
+      const o = OUTCOMES[l.outcome];
+      return `<div class="feed-item">
+        <strong>${esc(l.company)}</strong> — ${esc(l.contacted_by)}
+        ${o ? `&rarr; ${o.label}` : ""}
+        <span class="when">(${esc(l.business_unit)}) —
+          ${new Date(l.contacted_at).toLocaleDateString("nl-BE",
+            { day: "numeric", month: "short" })}</span>
+      </div>`;
+    }).join("");
+
+  return `<div class="stats-wrap" style="padding:12px 0 40px">
+    <div class="stats-section">
+      <h2>Gecontacteerde leads per Loyalty Manager.</h2>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        ${chip("week", "Laatste 7 dagen")}${chip("maand", "Laatste 30 dagen")}${chip("alles", "Alles")}
+        <span style="flex:1"></span>
+        <button class="btn ghost" id="stats-export">Exporteer statistieken</button>
+      </div>
+      <table class="stats">
+        <thead><tr>
+          <th>Naam</th><th style="text-align:right">Gecontacteerd</th>
+          <th style="text-align:right">Lead aangemaakt</th>
+          <th style="text-align:right">Meeting ingepland</th>
+          <th style="text-align:right">Geen interesse</th>
+          <th style="text-align:right">Positief</th>
+          <th>Laatste contact</th>
+        </tr></thead>
+        <tbody>${rowsHtml ||
+          `<tr><td colspan="7">Nog geen leads gecontacteerd in deze periode.</td></tr>`}</tbody>
+      </table>
+      <p style="font-size:13px;margin-top:14px">
+        <strong>Totaal deze periode:</strong> ${totV} leads gecontacteerd, waarvan
+        ${totP} positief (lead aangemaakt of meeting ingepland).
+        Elke lead telt één keer, bij wie er nu als contactpersoon op staat —
+        uitgevinkte leads tellen niet mee. Grijze rijen = 14+ dagen geen contact.
+      </p>
+    </div>
+    <div class="stats-section">
+      <h2>Recent gecontacteerd.</h2>
+      ${recent || `<p style="font-size:13px">Nog geen gecontacteerde leads.</p>`}
+    </div>
+    <div class="stats-section">
+      <h2>Geweerde bedrijven.</h2>
+      ${!blockedTableOk
+        ? `<p style="font-size:13px">De weerlijst-tabel bestaat nog niet in de database.
+           Stel het GitHub-secret <code>SUPABASE_DB_PASSWORD</code> in zodat de
+           migraties automatisch draaien (zie README), of voer
+           <code>migrations.sql</code> uit in de Supabase SQL Editor.</p>`
+        : `<p style="font-size:13px">Leads van deze bedrijven worden nooit getoond en
+           bij de eerstvolgende scan definitief uit de database verwijderd.
+           Toevoegen verbergt bestaande leads onmiddellijk.</p>
+      <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
+        <input id="block-input" type="text" placeholder="Bedrijfsnaam…"
+          style="padding:9px 12px;border:1px solid var(--border);font-family:inherit;font-size:13px;width:280px;background:var(--lighter)">
+        <button class="btn" id="block-add">Toevoegen</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${blockedList.map(b =>
+          `<span class="badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px">
+            ${esc(b.raw)}
+            <a data-unblock="${esc(b.raw)}" title="Verwijderen uit weerlijst"
+               style="cursor:pointer;color:#a33;font-weight:700">&#10006;</a></span>`).join("")
+          || `<span class="none" style="font-size:13px;font-style:italic">Nog geen bedrijven geweerd.</span>`}
+      </div>`}
+    </div>
+    <div class="stats-section">
+      <h2>Toewijzing per zone.</h2>
+      ${!assignmentsOk
+        ? `<p style="font-size:13px">De toewijzingstabel bestaat nog niet in de database.
+           Stel <code>SUPABASE_DB_PASSWORD</code> in zodat de migraties draaien (zie README).</p>`
+        : `<p style="font-size:13px">Koppel per business unit en regio een Loyalty Manager.
+           Die krijgt elke ochtend een persoonlijk Teams-bericht met de nieuwe leads in zijn/haar zone.
+           Laat leeg om geen melding te sturen voor die zone.</p>
+      <table class="stats" style="margin-top:8px">
+        <thead><tr><th>Business unit</th>${REGION_LIST.map(r =>
+          `<th>${esc(r.replace(" / ", "/").replace("-Vlaanderen", ""))}</th>`).join("")}</tr></thead>
+        <tbody>${BUSINESS_UNITS.map(bu => `<tr>
+          <td style="font-weight:600">${esc(bu)}</td>
+          ${REGION_LIST.map(region => {
+            const a = assignmentsMap[`${bu}||${region}`] || {};
+            return `<td>
+              <input class="asg-name" data-bu="${esc(bu)}" data-region="${esc(region)}"
+                     value="${esc(a.manager_name || "")}" placeholder="Naam"
+                     style="width:120px;padding:5px 7px;border:1px solid var(--border);font-family:inherit;font-size:12px;margin-bottom:3px;background:var(--lighter)">
+              <input class="asg-email" data-bu="${esc(bu)}" data-region="${esc(region)}"
+                     value="${esc(a.manager_email || "")}" placeholder="email@united..."
+                     style="width:120px;padding:5px 7px;border:1px solid var(--border);font-family:inherit;font-size:12px;background:var(--lighter)"></td>`;
+          }).join("")}</tr>`).join("")}</tbody>
+      </table>
+      <button class="btn" id="asg-save" style="margin-top:14px">Toewijzingen opslaan</button>
+      <span id="asg-status" class="meta" style="margin-left:12px"></span>`}
+    </div>
+  </div>`;
+}
+
+async function saveAssignments() {
+  const status = $("asg-status");
+  const rows = {};
+  document.querySelectorAll(".asg-name, .asg-email").forEach(inp => {
+    const key = `${inp.dataset.bu}||${inp.dataset.region}`;
+    rows[key] = rows[key] || { business_unit: inp.dataset.bu, region: inp.dataset.region,
+                               manager_name: "", manager_email: "" };
+    if (inp.classList.contains("asg-name"))  rows[key].manager_name  = inp.value.trim();
+    if (inp.classList.contains("asg-email")) rows[key].manager_email = inp.value.trim();
+  });
+  const payload = Object.values(rows).filter(r => r.manager_name || r.manager_email);
+  Object.values(rows).forEach(r => {
+    assignmentsMap[`${r.business_unit}||${r.region}`] =
+      { manager_name: r.manager_name, manager_email: r.manager_email };
+  });
+  if (DEMO) { if (status) status.textContent = "Opgeslagen (demo)"; return; }
+  const { error } = await db.from("assignments").upsert(payload,
+    { onConflict: "business_unit,region" });
+  if (status) status.textContent = error ? "Fout: " + error.message : "Opgeslagen ✓";
+}
+
+async function addBlockedCompany() {
+  const inp  = $("block-input");
+  const name = (inp?.value || "").trim();
+  if (!name || name.length < 3) return;
+  if (blockedList.some(b => b.raw.toLowerCase() === name.toLowerCase())) return;
+  blockedList.push({ raw: name, norm: normCompany(name) });
+  if (!DEMO) {
+    const { error } = await db.from("blocked_companies").insert({
+      company:  name,
+      added_by: currentUser.user_metadata?.full_name || currentUser.email,
+    });
+    if (error) { alert("Toevoegen mislukt: " + error.message); await loadBlocked(); }
+  }
+  render();
+}
+
+async function removeBlockedCompany(raw) {
+  blockedList = blockedList.filter(b => b.raw !== raw);
+  if (!DEMO) {
+    const { error } = await db.from("blocked_companies").delete().eq("company", raw);
+    if (error) { alert("Verwijderen mislukt: " + error.message); await loadBlocked(); }
+  }
+  render();
+}
+
+/* ── Excel-export ── */
+$("export-btn").addEventListener("click", async () => {
+  const wb = XLSX.utils.book_new();
+  for (const bu of [...BUSINESS_UNITS, "Archief"]) {
+    const rows = (bu === "Archief" ? leads.filter(isArchived)
+                                   : leads.filter(l => l.business_unit === bu && !isArchived(l)))
+      .map(l => ({
+        "DATUM":         l.last_seen,
+        "BEDRIJF":       l.company,
+        "FUNCTIETITEL":  topTitles[l.id] || "",
+        "CONTACTPERSOON": l.contact_name || "",
+        "FUNCTIE CONTACT": l.contact_title || "",
+        "LOCATIE":       l.location || "",
+        "REGIO":         l.region || "",
+        "EMAIL":         l.email || "",
+        "TELEFOON":      l.phone || "",
+        "WEBSITE":       l.website || "",
+        "SCORE (OP 10)": score10(l.score),
+        "# VACATURES":   l.vacancy_count,
+        "GECONTACTEERD": l.contacted ? "JA" : "NEE",
+        "RESULTAAT":     l.outcome ? (OUTCOMES[l.outcome]?.label || l.outcome) : "",
+        "DOOR":          l.contacted_by || "",
+        "OP":            l.contacted_at ? new Date(l.contacted_at).toLocaleDateString("nl-BE") : "",
+        "NOTITIE":       l.note || "",
+        "BUSINESS UNIT": l.business_unit,
+      }));
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ "DATUM": "" }]);
+    XLSX.utils.book_append_sheet(wb, ws, bu.substring(0, 31));
+  }
+
+  // Managers krijgen een extra blad: actuele stand per Loyalty Manager
+  if (isManager) {
+    const users = {};
+    for (const l of leads.filter(x => x.contacted && x.contacted_by)) {
+      const u = users[l.contacted_by] ??= {
+        naam: l.contacted_by, verwerkt: 0,
+        lead_aangemaakt: 0, meeting_gepland: 0, geen_interesse: 0,
+        laatst: l.contacted_at,
+      };
+      u.verwerkt++;
+      if (l.outcome && u[l.outcome] !== undefined) u[l.outcome]++;
+      if (l.contacted_at > u.laatst) u.laatst = l.contacted_at;
+    }
+    const statRows = Object.values(users)
+      .sort((a, b) => b.verwerkt - a.verwerkt)
+      .map(u => ({
+        "NAAM":              u.naam,
+        "GECONTACTEERD":     u.verwerkt,
+        "LEAD AANGEMAAKT":   u.lead_aangemaakt,
+        "MEETING INGEPLAND": u.meeting_gepland,
+        "GEEN INTERESSE":    u.geen_interesse,
+        "POSITIEF":          u.lead_aangemaakt + u.meeting_gepland,
+        "LAATSTE CONTACT":   new Date(u.laatst).toLocaleDateString("nl-BE"),
+      }));
+    const ws = XLSX.utils.json_to_sheet(statRows.length ? statRows : [{ "NAAM": "" }]);
+    XLSX.utils.book_append_sheet(wb, ws, "Statistieken");
+  }
+
+  XLSX.writeFile(wb, `Lead_Radar_${new Date().toISOString().slice(0, 10)}.xlsx`);
+});
+</script>
+</body>
+</html>
