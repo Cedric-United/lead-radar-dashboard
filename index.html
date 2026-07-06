@@ -344,6 +344,14 @@ const OUTCOMES = {
   geen_interesse:  { label: "Geen interesse",    icon: "&#10006;", positive: false },
 };
 
+// Verplichte reden bij "niet relevant". concurrent/interim → auto-weren.
+const IRRELEVANT_REASONS = {
+  concurrent:     { label: "Concurrent",     block: true  },
+  interim_bureau: { label: "Interim bureau", block: true  },
+  te_klein:       { label: "Te klein",       block: false },
+  other:          { label: "Other",          block: false },
+};
+
 // Demo-modus: open index.html?demo om het dashboard met voorbeelddata
 // te bekijken zonder database (handig om aan het team te tonen)
 const DEMO = new URLSearchParams(location.search).has("demo");
@@ -381,7 +389,8 @@ let assignmentsOk  = true;  // false zolang de v5-migratie nog niet draaide
 const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant"];
 const vacCache  = {};       // lead_id -> vacancies[]
 const expanded  = new Set();
-const pendingOutcome = new Set();  // leads die wachten op uitkomst-keuze
+const pendingOutcome = new Set();     // leads die wachten op uitkomst-keuze
+const pendingIrrelevant = new Set();  // leads die wachten op reden-keuze
 
 /* ── Auth ── */
 const $ = (id) => document.getElementById(id);
@@ -492,6 +501,9 @@ function demoLeads() {
     contacted: !!opts.by, contacted_by: opts.by || null,
     contacted_at: opts.by ? new Date().toISOString() : null,
     outcome: opts.outcome || null, note: opts.note || null,
+    irrelevant: !!opts.irr, irrelevant_reason: opts.irr || null,
+    irrelevant_by: opts.irr ? "Jan De Smet" : null,
+    irrelevant_at: opts.irr ? new Date().toISOString() : null,
     _vacs: (opts.vacs || ["Vacature"]).map(t => ({
       title: t, source: "VDAB", url: "#", posted: today,
       location: loc, description: "Voorbeeldomschrijving van de opdracht.",
@@ -521,6 +533,8 @@ function demoLeads() {
        { score: 11, vacs: ["Management Assistant"] }),
     mk("HR", "Oude Lead NV", "Aalst", "Oost & West-Vlaanderen",
        { score: 9, first: d(45), last: d(40), vacs: ["HR Officer"] }),
+    mk("Finance", "Kleine Zaak BVBA", "Aalst", "Oost & West-Vlaanderen",
+       { score: 8, irr: "te_klein", vacs: ["Boekhouder"] }),
   ];
 }
 
@@ -628,10 +642,11 @@ function esc(s) {
 
 /* ── Tabs & filters ── */
 function buildTabs() {
-  const tabs = [...BUSINESS_UNITS, "Archief"];
+  const tabs = [...BUSINESS_UNITS, "Archief", "Irrelevant"];
   if (isManager) tabs.push("Statistieken");
   $("tabs").innerHTML = tabs.map(t => {
-    const todo = t === "Statistieken" ? 0 : leads.filter(l =>
+    const todo = (t === "Statistieken" || t === "Irrelevant") ? 0 : leads.filter(l =>
+      !l.irrelevant &&
       (t === "Archief" ? isArchived(l) : l.business_unit === t && !isArchived(l))
       && !l.contacted).length;
     return `<button class="${t === activeTab ? "active" : ""}" data-tab="${esc(t)}">
@@ -664,12 +679,21 @@ $("search").addEventListener("input", (e) => {
 
 /* ── Render ── */
 function visibleLeads() {
-  let rows = activeTab === "Archief"
-    ? leads.filter(isArchived)
-    : leads.filter(l => l.business_unit === activeTab && !isArchived(l));
-  rows = rows.filter(l => !isBlockedCompany(l.company));
-  if (activeFilter === "todo") rows = rows.filter(l => !l.contacted);
-  if (activeFilter === "done") rows = rows.filter(l => l.contacted);
+  let rows;
+  if (activeTab === "Irrelevant") {
+    rows = leads.filter(l => l.irrelevant);
+  } else if (activeTab === "Archief") {
+    rows = leads.filter(l => isArchived(l) && !l.irrelevant);
+  } else {
+    rows = leads.filter(l => l.business_unit === activeTab && !isArchived(l) && !l.irrelevant);
+  }
+  // Geweerde bedrijven verbergen we overal behalve op de Irrelevant-tab
+  // (daar wil je ze net kunnen zien/terugzetten).
+  if (activeTab !== "Irrelevant") {
+    rows = rows.filter(l => !isBlockedCompany(l.company));
+    if (activeFilter === "todo") rows = rows.filter(l => !l.contacted);
+    if (activeFilter === "done") rows = rows.filter(l => l.contacted);
+  }
   if (regionFilter !== "alle") rows = rows.filter(l => l.region === regionFilter);
   if (searchTerm) {
     rows = rows.filter(l =>
@@ -688,6 +712,7 @@ function render() {
   if (!rows.length) {
     $("list").innerHTML = `<div class="empty"><h3>Geen leads.</h3>
       <p>${activeTab === "Archief" ? "Het archief is leeg." :
+           activeTab === "Irrelevant" ? "Nog geen leads als niet-relevant gemarkeerd." :
            "Geen leads die aan de filters voldoen — kom morgen terug na de volgende scan."}</p></div>`;
     return;
   }
@@ -710,7 +735,7 @@ function cardHtml(l) {
         <span class="badge">${l.vacancy_count} vacature${l.vacancy_count > 1 ? "s" : ""}</span>
         ${isNew ? `<span class="badge new">Nieuw</span>` : ""}
         ${l.knelpunt ? `<span class="badge">&#128293; Knelpunt</span>` : ""}
-        ${activeTab === "Archief" ? `<span class="badge">${esc(l.business_unit)}</span>` : ""}
+        ${activeTab === "Archief" || activeTab === "Irrelevant" ? `<span class="badge">${esc(l.business_unit)}</span>` : ""}
       </div>
       <div class="contactrow">
         ${l.contact_name ? `<span>&#128100; <strong>${esc(l.contact_name)}</strong>${l.contact_title ? ` — ${esc(l.contact_title)}` : ""} <span style="color:#9aa0aa">(CRM)</span></span>` : ""}
@@ -738,6 +763,21 @@ function cardHtml(l) {
         ${OUTCOMES[l.outcome]?.icon || ""} ${OUTCOMES[l.outcome]?.label || esc(l.outcome)}</span>` : ""}
       <span class="who">${l.contacted && l.contacted_by
         ? `door ${esc(l.contacted_by)} op ${new Date(l.contacted_at).toLocaleDateString("nl-BE")}` : ""}</span>
+      <label class="check" style="margin-top:6px">
+        <input type="checkbox" data-act="irrelevant" ${l.irrelevant || pendingIrrelevant.has(l.id) ? "checked" : ""}>
+        Niet relevant
+      </label>
+      ${pendingIrrelevant.has(l.id) ? `
+      <div class="outcome-panel">
+        <div class="q">Waarom niet relevant?</div>
+        ${Object.entries(IRRELEVANT_REASONS).map(([key, o]) =>
+          `<button data-act="reason" data-reason="${key}">${o.label}</button>`).join("")}
+        <button class="cancel" data-act="reason-cancel">Annuleer</button>
+      </div>` : ""}
+      ${l.irrelevant && l.irrelevant_reason ? `
+      <span class="badge outcome-neg">&#128683; ${IRRELEVANT_REASONS[l.irrelevant_reason]?.label || esc(l.irrelevant_reason)}</span>
+      <span class="who">${l.irrelevant_by
+        ? `door ${esc(l.irrelevant_by)}${l.irrelevant_at ? " op " + new Date(l.irrelevant_at).toLocaleDateString("nl-BE") : ""}` : ""}</span>` : ""}
       <textarea data-act="note" placeholder="Notitie voor het team…">${esc(l.note || "")}</textarea>
       <span class="who">Eerst gezien: ${fmtDate(l.first_seen)} &middot; laatst: ${fmtDate(l.last_seen)}</span>
     </div>
@@ -822,6 +862,66 @@ function bindCardEvents() {
     const cancelBtn = card.querySelector("[data-act=outcome-cancel]");
     if (cancelBtn) cancelBtn.addEventListener("click", () => {
       pendingOutcome.delete(id);
+      render();
+    });
+
+    // ── Niet relevant ──
+    card.querySelector("[data-act=irrelevant]").addEventListener("change", async (e) => {
+      const checked = e.target.checked;
+      if (checked && !lead.irrelevant) {
+        pendingIrrelevant.add(id);            // eerst verplicht een reden kiezen
+        render();
+        return;
+      }
+      if (!checked && pendingIrrelevant.has(id)) {
+        pendingIrrelevant.delete(id);
+        render();
+        return;
+      }
+      if (!checked && lead.irrelevant) {
+        if (!confirm(`"${lead.company}" terugzetten als relevante lead?`)) { render(); return; }
+        lead.irrelevant = false; lead.irrelevant_reason = null;
+        lead.irrelevant_by = null; lead.irrelevant_at = null;
+        render();
+        if (DEMO) return;
+        const { error } = await db.from("leads").update({
+          irrelevant: false, irrelevant_reason: null,
+          irrelevant_by: null, irrelevant_at: null,
+        }).eq("id", id);
+        if (error) { alert("Opslaan mislukt: " + error.message); loadLeads(); }
+      }
+    });
+
+    card.querySelectorAll("[data-act=reason]").forEach(btn =>
+      btn.addEventListener("click", async () => {
+        const reason = btn.dataset.reason;
+        const name = currentUser.user_metadata?.full_name || currentUser.email;
+        pendingIrrelevant.delete(id);
+        lead.irrelevant        = true;
+        lead.irrelevant_reason = reason;
+        lead.irrelevant_by     = name;
+        lead.irrelevant_at     = new Date().toISOString();
+        // concurrent / interim bureau → meteen op de weerlijst
+        const doBlock = IRRELEVANT_REASONS[reason]?.block;
+        if (doBlock && !blockedList.some(b => b.raw.toLowerCase() === lead.company.toLowerCase())) {
+          blockedList.push({ raw: lead.company, norm: normCompany(lead.company) });
+        }
+        render();
+        if (DEMO) return;
+        const { error } = await db.from("leads").update({
+          irrelevant: true, irrelevant_reason: reason,
+          irrelevant_by: name, irrelevant_at: lead.irrelevant_at,
+        }).eq("id", id);
+        if (error) { alert("Opslaan mislukt: " + error.message); loadLeads(); return; }
+        if (doBlock) {
+          await db.from("blocked_companies")
+            .insert({ company: lead.company, added_by: name });
+        }
+      }));
+
+    const reasonCancel = card.querySelector("[data-act=reason-cancel]");
+    if (reasonCancel) reasonCancel.addEventListener("click", () => {
+      pendingIrrelevant.delete(id);
       render();
     });
 
@@ -1057,8 +1157,8 @@ async function removeBlockedCompany(raw) {
 $("export-btn").addEventListener("click", async () => {
   const wb = XLSX.utils.book_new();
   for (const bu of [...BUSINESS_UNITS, "Archief"]) {
-    const rows = (bu === "Archief" ? leads.filter(isArchived)
-                                   : leads.filter(l => l.business_unit === bu && !isArchived(l)))
+    const rows = (bu === "Archief" ? leads.filter(l => isArchived(l) && !l.irrelevant)
+                                   : leads.filter(l => l.business_unit === bu && !isArchived(l) && !l.irrelevant))
       .map(l => ({
         "DATUM":         l.last_seen,
         "BEDRIJF":       l.company,
@@ -1082,6 +1182,19 @@ $("export-btn").addEventListener("click", async () => {
     const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ "DATUM": "" }]);
     XLSX.utils.book_append_sheet(wb, ws, bu.substring(0, 31));
   }
+
+  // Apart blad met de niet-relevante leads + reden
+  const irrRows = leads.filter(l => l.irrelevant).map(l => ({
+    "DATUM":          l.last_seen,
+    "BEDRIJF":        l.company,
+    "BUSINESS UNIT":  l.business_unit,
+    "REGIO":          l.region || "",
+    "REDEN":          IRRELEVANT_REASONS[l.irrelevant_reason]?.label || l.irrelevant_reason || "",
+    "DOOR":           l.irrelevant_by || "",
+    "OP":             l.irrelevant_at ? new Date(l.irrelevant_at).toLocaleDateString("nl-BE") : "",
+  }));
+  const irrWs = XLSX.utils.json_to_sheet(irrRows.length ? irrRows : [{ "BEDRIJF": "" }]);
+  XLSX.utils.book_append_sheet(wb, irrWs, "Irrelevant");
 
   // Managers krijgen een extra blad: actuele stand per Loyalty Manager
   if (isManager) {
