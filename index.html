@@ -1004,33 +1004,6 @@ function statsHtml() {
           || `<span class="none" style="font-size:13px;font-style:italic">Nog geen bedrijven geweerd.</span>`}
       </div>`}
     </div>
-    <div class="stats-section">
-      <h2>Toewijzing per zone.</h2>
-      ${!assignmentsOk
-        ? `<p style="font-size:13px">De toewijzingstabel bestaat nog niet in de database.
-           Stel <code>SUPABASE_DB_PASSWORD</code> in zodat de migraties draaien (zie README).</p>`
-        : `<p style="font-size:13px">Koppel per business unit en regio een Loyalty Manager.
-           Die krijgt elke ochtend een persoonlijk Teams-bericht met de nieuwe leads in zijn/haar zone.
-           Laat leeg om geen melding te sturen voor die zone.</p>
-      <table class="stats" style="margin-top:8px">
-        <thead><tr><th>Business unit</th>${REGION_LIST.map(r =>
-          `<th>${esc(r.replace(" / ", "/").replace("-Vlaanderen", ""))}</th>`).join("")}</tr></thead>
-        <tbody>${BUSINESS_UNITS.map(bu => `<tr>
-          <td style="font-weight:600">${esc(bu)}</td>
-          ${REGION_LIST.map(region => {
-            const a = assignmentsMap[`${bu}||${region}`] || {};
-            return `<td>
-              <input class="asg-name" data-bu="${esc(bu)}" data-region="${esc(region)}"
-                     value="${esc(a.manager_name || "")}" placeholder="Naam"
-                     style="width:120px;padding:5px 7px;border:1px solid var(--border);font-family:inherit;font-size:12px;margin-bottom:3px;background:var(--lighter)">
-              <input class="asg-email" data-bu="${esc(bu)}" data-region="${esc(region)}"
-                     value="${esc(a.manager_email || "")}" placeholder="email@united..."
-                     style="width:120px;padding:5px 7px;border:1px solid var(--border);font-family:inherit;font-size:12px;background:var(--lighter)"></td>`;
-          }).join("")}</tr>`).join("")}</tbody>
-      </table>
-      <button class="btn" id="asg-save" style="margin-top:14px">Toewijzingen opslaan</button>
-      <span id="asg-status" class="meta" style="margin-left:12px"></span>`}
-    </div>
   </div>`;
 }
 
