@@ -495,10 +495,12 @@ if (DEMO) {
     render();
   });
 } else {
-  db.auth.onAuthStateChange(async (event, session) => {
+  db.auth.onAuthStateChange((event, session) => {
     currentUser = session ? session.user : null;
     if (currentUser) {
-      await gateAccess();
+      // BELANGRIJK: geen await/db-calls binnen de callback zelf — dat geeft
+      // een deadlock in supabase-js. We plannen het werk erbuiten met setTimeout.
+      setTimeout(() => { gateAccess(); }, 0);
     } else {
       $("login-view").style.display    = "flex";
       $("app-view").style.display      = "none";
