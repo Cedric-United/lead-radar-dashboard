@@ -317,6 +317,20 @@
   </footer>
 </div>
 
+<!-- ════════ WACHTSCHERM (toegang nog niet goedgekeurd) ════════ -->
+<div id="pending-view" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--charcoal)">
+  <div class="login-card" style="text-align:center">
+    <svg class="logo-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" style="margin:0 auto">
+      <rect x="2" y="2" width="36" height="36" fill="none" stroke="#434a55" stroke-width="4"/>
+      <rect x="13" y="13" width="14" height="14" fill="#434a55"/>
+    </svg>
+    <h2 id="pending-title">In afwachting van goedkeuring.</h2>
+    <p class="sub" id="pending-msg">Je account is aangemaakt. Een beheerder moet je toegang nog
+      goedkeuren — je krijgt toegang zodra dat gebeurd is.</p>
+    <button class="btn ghost" id="pending-logout" style="width:100%;margin-top:20px">Uitloggen</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
@@ -388,6 +402,8 @@ let assignmentsMap = {};    // "BU||regio" -> {manager_name, manager_email}
 let assignmentsOk  = true;  // false zolang de v5-migratie nog niet draaide
 let usersList      = null;  // [{id,email,name,created_at,last_sign_in}] (managers)
 let usersOk        = true;  // false zolang de v7-migratie nog niet draaide
+let requestsList   = null;  // toegangsaanvragen (managers)
+let requestsOk     = true;  // false zolang de v8-migratie nog niet draaide
 const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant"];
 const vacCache  = {};       // lead_id -> vacancies[]
 const expanded  = new Set();
@@ -471,28 +487,70 @@ if (DEMO) {
       { id: "u2", email: "sofie@unitedconsulting.be", name: "Sofie Peeters", created_at: "2026-06-10", last_sign_in: "2026-07-05" },
       { id: "u3", email: "jan@unitedconsulting.be",   name: "Jan De Smet",   created_at: "2026-06-12", last_sign_in: null },
     ];
+    requestsList = [
+      { email: "nieuwe.sales@unitedconsulting.be", name: "Nieuwe Sales", status: "pending", requested_at: new Date().toISOString() },
+      { email: "stagiair@unitedconsulting.be",     name: "Stagiair X",   status: "pending", requested_at: "2026-07-06" },
+    ];
     $("last-update").textContent = "Demo-modus — voorbeelddata";
     render();
   });
 } else {
-  db.auth.onAuthStateChange((event, session) => {
+  db.auth.onAuthStateChange(async (event, session) => {
     currentUser = session ? session.user : null;
     if (currentUser) {
-      $("login-view").style.display = "none";
-      $("app-view").style.display   = "block";
-      $("user-name").textContent =
-        currentUser.user_metadata?.full_name || currentUser.email;
-      checkManager();
-      loadBlocked().then(render);
-      loadAssignments().then(render);
-      loadLeads();
-      subscribeRealtime();
+      await gateAccess();
     } else {
-      $("login-view").style.display = "flex";
-      $("app-view").style.display   = "none";
+      $("login-view").style.display    = "flex";
+      $("app-view").style.display      = "none";
+      $("pending-view").style.display  = "none";
       $("login-btn").disabled = false;
     }
   });
+
+  $("pending-logout").addEventListener("click", () => db.auth.signOut());
+}
+
+// Bepaalt of de ingelogde gebruiker toegang krijgt of moet wachten op goedkeuring
+async function gateAccess() {
+  // Manager? → altijd toegang
+  await checkManager();          // zet isManager
+  let allowed = isManager;
+
+  if (!allowed) {
+    const email = currentUser.email;
+    let { data } = await db.from("member_access").select("status").eq("email", email).maybeSingle();
+    if (!data) {
+      // Eerste login na registratie → aanvraag indienen (pending)
+      await db.from("member_access").insert({
+        email, name: currentUser.user_metadata?.full_name || email, status: "pending",
+      });
+      data = { status: "pending" };
+    }
+    if (data.status === "approved") {
+      allowed = true;
+    } else {
+      // Wachtscherm tonen
+      $("login-view").style.display   = "none";
+      $("app-view").style.display     = "none";
+      $("pending-view").style.display = "flex";
+      if (data.status === "rejected") {
+        $("pending-title").textContent = "Geen toegang.";
+        $("pending-msg").textContent =
+          "Je toegangsaanvraag is geweigerd. Neem contact op met je beheerder als dit een vergissing is.";
+      }
+      return;
+    }
+  }
+
+  // Toegang verleend → app tonen
+  $("login-view").style.display   = "none";
+  $("pending-view").style.display = "none";
+  $("app-view").style.display     = "block";
+  $("user-name").textContent = currentUser.user_metadata?.full_name || currentUser.email;
+  loadBlocked().then(render);
+  loadAssignments().then(render);
+  loadLeads();
+  subscribeRealtime();
 }
 
 function demoLeads() {
@@ -593,6 +651,14 @@ async function loadUsers() {
   if (error) { usersOk = false; usersList = []; return; }
   usersOk = true;
   usersList = data || [];
+}
+
+async function loadRequests() {
+  const { data, error } = await db.from("member_access")
+    .select("email,name,status,requested_at").order("requested_at");
+  if (error) { requestsOk = false; requestsList = []; return; }
+  requestsOk = true;
+  requestsList = data || [];
 }
 
 /* ── Data ── */
@@ -956,11 +1022,18 @@ function bindCardEvents() {
    uitgevinkt, dan verdwijnt hij uit de cijfers tot iemand opnieuw
    contact opneemt. */
 function renderStats() {
-  // Accounts één keer ophalen bij het openen van de Statistieken-tab
-  if (usersList === null && !DEMO) { loadUsers().then(render); }
+  // Accounts + aanvragen één keer ophalen bij het openen van de Statistieken-tab
+  if (usersList === null && !DEMO)    { loadUsers().then(render); }
+  if (requestsList === null && !DEMO) { loadRequests().then(render); }
   $("list").innerHTML = statsHtml();
   document.querySelectorAll("[data-deluser]").forEach(a =>
     a.addEventListener("click", () => deleteUser(a.dataset.deluser, a.dataset.delname)));
+  document.querySelectorAll("[data-setpw]").forEach(a =>
+    a.addEventListener("click", () => setUserPassword(a.dataset.setpw, a.dataset.pwname)));
+  document.querySelectorAll("[data-approve]").forEach(a =>
+    a.addEventListener("click", () => approveRequest(a.dataset.approve, true)));
+  document.querySelectorAll("[data-reject]").forEach(a =>
+    a.addEventListener("click", () => approveRequest(a.dataset.reject, false)));
   document.querySelectorAll("[data-period]").forEach(b =>
     b.addEventListener("click", () => { statsPeriod = b.dataset.period; render(); }));
   const ex = $("stats-export");
@@ -1123,13 +1196,36 @@ function statsHtml() {
       </div>`}
     </div>
     <div class="stats-section">
+      <h2>Toegangsaanvragen.</h2>
+      ${!requestsOk
+        ? `<p style="font-size:13px">Goedkeuring is nog niet actief in de database.
+           Stel <code>SUPABASE_DB_PASSWORD</code> in zodat de migraties draaien (zie README).</p>`
+        : (() => {
+            const pend = (requestsList || []).filter(r => r.status === "pending");
+            if (!pend.length) return `<p style="font-size:13px">Geen openstaande aanvragen.
+              Nieuwe registraties verschijnen hier en krijgen pas toegang na jouw goedkeuring.</p>`;
+            return `<p style="font-size:13px">Deze mensen wachten op toegang tot de tool.</p>
+            <table class="stats" style="margin-top:8px">
+              <thead><tr><th>Naam</th><th>Email</th><th>Aangevraagd</th><th></th></tr></thead>
+              <tbody>${pend.map(r => `<tr>
+                <td>${esc(r.name || "—")}</td>
+                <td>${esc(r.email)}</td>
+                <td>${r.requested_at ? new Date(r.requested_at).toLocaleDateString("nl-BE") : ""}</td>
+                <td>
+                  <a data-approve="${esc(r.email)}" style="cursor:pointer;color:#1a5c2a;font-weight:700;margin-right:12px">Goedkeuren</a>
+                  <a data-reject="${esc(r.email)}" style="cursor:pointer;color:#a33;font-weight:700">Weigeren</a>
+                </td></tr>`).join("")}</tbody>
+            </table>`;
+          })()}
+    </div>
+    <div class="stats-section">
       <h2>Accountbeheer.</h2>
       ${!usersOk
         ? `<p style="font-size:13px">Accountbeheer is nog niet actief in de database.
            Stel <code>SUPABASE_DB_PASSWORD</code> in zodat de migraties draaien (zie README).</p>`
-        : `<p style="font-size:13px">Alle geregistreerde accounts. Verwijderen kan niet ongedaan
-           gemaakt worden — de persoon kan zich daarna wel opnieuw registreren.
-           Je eigen account kan je niet verwijderen.</p>
+        : `<p style="font-size:13px">Alle geregistreerde accounts. "Wachtwoord instellen" geeft iemand
+           een nieuw (tijdelijk) wachtwoord als die het vergeten is. Verwijderen kan niet ongedaan
+           gemaakt worden. Je eigen account kan je niet verwijderen.</p>
       <table class="stats" style="margin-top:8px">
         <thead><tr><th>Naam</th><th>Email</th><th>Geregistreerd</th><th>Laatste login</th><th></th></tr></thead>
         <tbody>${(usersList || []).map(u => {
@@ -1139,15 +1235,39 @@ function statsHtml() {
             <td>${esc(u.email)}</td>
             <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("nl-BE") : ""}</td>
             <td>${u.last_sign_in ? new Date(u.last_sign_in).toLocaleDateString("nl-BE") : "nooit"}</td>
-            <td>${zelf
-              ? `<span class="who">jij</span>`
-              : `<a data-deluser="${esc(u.id)}" data-delname="${esc(u.name || u.email)}"
-                   style="cursor:pointer;color:#a33;font-weight:700" title="Account verwijderen">Verwijderen</a>`}</td>
+            <td>
+              <a data-setpw="${esc(u.id)}" data-pwname="${esc(u.name || u.email)}"
+                 style="cursor:pointer;color:var(--link);font-weight:700;margin-right:12px">Wachtwoord instellen</a>
+              ${zelf
+                ? `<span class="who">jij</span>`
+                : `<a data-deluser="${esc(u.id)}" data-delname="${esc(u.name || u.email)}"
+                     style="cursor:pointer;color:#a33;font-weight:700" title="Account verwijderen">Verwijderen</a>`}</td>
           </tr>`;
         }).join("") || `<tr><td colspan="5">Nog geen accounts.</td></tr>`}</tbody>
       </table>`}
     </div>
   </div>`;
+}
+
+async function approveRequest(email, approve) {
+  const patch = approve
+    ? { status: "approved", decided_by: currentUser.email, decided_at: new Date().toISOString() }
+    : { status: "rejected", decided_by: currentUser.email, decided_at: new Date().toISOString() };
+  requestsList = (requestsList || []).map(r => r.email === email ? { ...r, status: patch.status } : r);
+  render();
+  if (DEMO) return;
+  const { error } = await db.from("member_access").update(patch).eq("email", email);
+  if (error) { alert("Mislukt: " + error.message); await loadRequests(); render(); }
+}
+
+async function setUserPassword(id, name) {
+  const pw = prompt(`Nieuw (tijdelijk) wachtwoord voor "${name}" (min. 6 tekens).\n` +
+                    `Geef dit daarna door aan de persoon; die kan het later zelf wijzigen.`);
+  if (pw === null) return;
+  if (pw.length < 6) { alert("Wachtwoord moet minstens 6 tekens zijn."); return; }
+  if (DEMO) { alert("Wachtwoord ingesteld (demo)."); return; }
+  const { error } = await db.rpc("admin_set_password", { target_id: id, new_password: pw });
+  alert(error ? "Mislukt: " + error.message : `Wachtwoord voor "${name}" is ingesteld.`);
 }
 
 async function deleteUser(id, name) {
