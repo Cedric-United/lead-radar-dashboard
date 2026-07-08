@@ -735,7 +735,12 @@ function buildTabs() {
       ${esc(t)}${todo ? `<span class="cnt">${todo}</span>` : ""}</button>`;
   }).join("");
   $("tabs").querySelectorAll("button").forEach(b =>
-    b.addEventListener("click", () => { activeTab = b.dataset.tab; render(); }));
+    b.addEventListener("click", () => {
+      activeTab = b.dataset.tab;
+      // Bij elk tabblad de leads opnieuw ophalen → altijd de laatste
+      // aanpassingen van collega's zichtbaar (ook zonder realtime).
+      if (!DEMO && currentUser) { loadLeads(); } else { render(); }
+    }));
 }
 
 document.querySelectorAll(".toolbar [data-filter]").forEach(c =>
@@ -757,6 +762,17 @@ document.querySelectorAll(".toolbar [data-region]").forEach(c =>
 $("search").addEventListener("input", (e) => {
   searchTerm = e.target.value.toLowerCase();
   render();
+});
+
+// Bij terugkeer naar het venster de leads verversen (hoogstens 1×/10s)
+let _lastRefresh = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (DEMO || !currentUser) return;
+  const now = Date.now();
+  if (now - _lastRefresh < 10000) return;
+  _lastRefresh = now;
+  loadLeads();
 });
 
 /* ── Render ── */
