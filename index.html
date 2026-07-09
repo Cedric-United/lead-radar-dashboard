@@ -242,6 +242,14 @@
 </head>
 <body>
 
+<!-- ════════ UPDATE-BALK ════════ -->
+<div id="update-banner" style="display:none;position:sticky;top:0;z-index:99;background:#434a55;color:#fff;
+     padding:10px 32px;font-size:13px;align-items:center;gap:16px">
+  <span>Er is een nieuwe versie van het dashboard beschikbaar.</span>
+  <button class="btn ghost" id="update-reload"
+          style="color:#fff;border-color:#fff;padding:7px 16px;font-size:11px">Vernieuwen</button>
+</div>
+
 <!-- ════════ LOGIN ════════ -->
 <div id="login-view">
   <div class="login-card">
@@ -799,12 +807,33 @@ $("search").addEventListener("input", (e) => {
 let _lastRefresh = 0;
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
+  checkForUpdate();
   if (DEMO || !currentUser) return;
   const now = Date.now();
   if (now - _lastRefresh < 10000) return;
   _lastRefresh = now;
   loadLeads();
 });
+
+// ── Nieuwe-versie-detectie ──────────────────────────────
+// Langlevende tabs laden nooit vanzelf de nieuwe dashboard-code.
+// We vergelijken periodiek de ETag van de pagina; wijzigt die, dan
+// verschijnt de "Vernieuwen"-balk bovenaan.
+let _pageTag = null;
+async function checkForUpdate() {
+  if (location.protocol === "file:") return;
+  try {
+    const r = await fetch(location.pathname + "?u=" + Date.now(),
+                          { method: "HEAD", cache: "no-store" });
+    const tag = r.headers.get("etag") || r.headers.get("last-modified");
+    if (!tag) return;
+    if (_pageTag === null) { _pageTag = tag; return; }
+    if (tag !== _pageTag) $("update-banner").style.display = "flex";
+  } catch (e) { /* offline — stil negeren */ }
+}
+$("update-reload").addEventListener("click", () => location.reload());
+checkForUpdate();
+setInterval(checkForUpdate, 10 * 60 * 1000);
 
 /* ── Render ── */
 function updateMyOpenCounter() {
