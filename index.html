@@ -839,11 +839,17 @@ setInterval(checkForUpdate, 10 * 60 * 1000);
 function updateMyOpenCounter() {
   const el = $("my-open");
   if (!el) return;
-  if (!currentUser) { el.textContent = ""; return; }
+  if (!currentUser || !leads.length) { el.textContent = ""; return; }
   const open = leads.filter(l =>
     l.assigned_to_email === currentUser.email &&
     !l.contacted && !l.irrelevant && !isArchived(l)).length;
-  el.textContent = open ? `Jouw openstaande leads: ${open}` : "";
+  if (open > 0) {
+    el.textContent  = `Jouw openstaande leads: ${open}`;
+    el.style.color  = "#a33";           // rood: valt op, actie nodig
+  } else {
+    el.textContent  = "Geen openstaande leads";
+    el.style.color  = "var(--charcoal)";
+  }
 }
 
 function visibleLeads() {
