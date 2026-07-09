@@ -296,7 +296,9 @@
       <button class="chip active" data-filter="all">Alle</button>
       <button class="chip" data-filter="todo">Te contacteren</button>
       <button class="chip" data-filter="done">Gecontacteerd</button>
+      <button class="chip" data-filter="mine">Mijn leads</button>
       <div class="spacer"></div>
+      <span class="meta" id="my-open" style="font-weight:700;color:var(--charcoal)"></span>
       <span class="meta" id="last-update"></span>
       <button class="btn ghost" id="export-btn">Exporteer naar Excel</button>
     </div>
@@ -310,6 +312,7 @@
   </div>
 
   <div id="list"></div>
+  <datalist id="members-dl"></datalist>
 
   <footer>
     WWW.UNITEDCONSULTING.BE<br>
@@ -404,6 +407,7 @@ let usersList      = null;  // [{id,email,name,created_at,last_sign_in}] (manage
 let usersOk        = true;  // false zolang de v7-migratie nog niet draaide
 let requestsList   = null;  // toegangsaanvragen (managers)
 let requestsOk     = true;  // false zolang de v8-migratie nog niet draaide
+let membersList    = [];    // goedgekeurde collega's [{email,name}] voor toewijzing
 const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant"];
 const vacCache  = {};       // lead_id -> vacancies[]
 const expanded  = new Set();
@@ -491,6 +495,12 @@ if (DEMO) {
       { email: "nieuwe.sales@unitedconsulting.be", name: "Nieuwe Sales", status: "pending", requested_at: new Date().toISOString() },
       { email: "stagiair@unitedconsulting.be",     name: "Stagiair X",   status: "pending", requested_at: "2026-07-06" },
     ];
+    membersList = [
+      { email: "demo@unitedconsulting.be",  name: "Demo Gebruiker" },
+      { email: "sofie@unitedconsulting.be", name: "Sofie Peeters" },
+      { email: "jan@unitedconsulting.be",   name: "Jan De Smet" },
+    ];
+    fillMembersDatalist();
     $("last-update").textContent = "Demo-modus — voorbeelddata";
     render();
   });
@@ -551,6 +561,7 @@ async function gateAccess() {
   $("user-name").textContent = currentUser.user_metadata?.full_name || currentUser.email;
   loadBlocked().then(render);
   loadAssignments().then(render);
+  loadMembers().then(render);
   loadLeads();
   subscribeRealtime();
 }
@@ -571,6 +582,8 @@ function demoLeads() {
     irrelevant: !!opts.irr, irrelevant_reason: opts.irr || null,
     irrelevant_by: opts.irr ? "Jan De Smet" : null,
     irrelevant_at: opts.irr ? new Date().toISOString() : null,
+    assigned_to_name: opts.assign || null,
+    assigned_to_email: opts.assignMail || null,
     _vacs: (opts.vacs || ["Vacature"]).map(t => ({
       title: t, source: "VDAB", url: "#", posted: today,
       location: loc, description: "Voorbeeldomschrijving van de opdracht.",
@@ -579,7 +592,8 @@ function demoLeads() {
   return [
     mk("Supply Chain", "Logiparts NV", "Antwerpen", "Antwerpen / Limburg",
        { score: 21, email: "hr@logiparts.be", phone: "03 444 55 66", web: "https://logiparts.be",
-         knelpunt: true, vacs: ["Supply Chain Planner", "Demand Planner", "Logistiek Manager"] }),
+         knelpunt: true, vacs: ["Supply Chain Planner", "Demand Planner", "Logistiek Manager"],
+         assign: "Demo Gebruiker", assignMail: "demo@unitedconsulting.be" }),
     mk("Supply Chain", "Fresh Foods Belgium", "Mechelen", "Antwerpen / Limburg",
        { score: 14, web: "https://freshfoods.example", vacs: ["Warehouse Supervisor"] }),
     mk("Finance", "Atlas Bouwgroep", "Gent", "Oost & West-Vlaanderen",
@@ -663,6 +677,22 @@ async function loadRequests() {
   requestsList = data || [];
 }
 
+async function loadMembers() {
+  // Goedgekeurde collega's — voor het toewijs-keuzemenu (met zoekfunctie)
+  const { data, error } = await db.from("member_access")
+    .select("email,name").eq("status", "approved").order("name");
+  if (error) { membersList = []; return; }
+  membersList = (data || []).filter(m => m.name || m.email);
+  fillMembersDatalist();
+}
+
+function fillMembersDatalist() {
+  const dl = $("members-dl");
+  if (!dl) return;
+  dl.innerHTML = membersList.map(m =>
+    `<option value="${esc(m.name || m.email)}">${esc(m.email)}</option>`).join("");
+}
+
 /* ── Data ── */
 async function loadLeads() {
   const { data, error } = await db
@@ -731,7 +761,8 @@ function buildTabs() {
       !l.irrelevant &&
       (t === "Archief" ? isArchived(l) : l.business_unit === t && !isArchived(l))
       && !l.contacted).length;
-    return `<button class="${t === activeTab ? "active" : ""}" data-tab="${esc(t)}">
+    return `<button class="${t === activeTab ? "active" : ""}" data-tab="${esc(t)}"
+      title="${todo ? todo + " nog te contacteren" : ""}">
       ${esc(t)}${todo ? `<span class="cnt">${todo}</span>` : ""}</button>`;
   }).join("");
   $("tabs").querySelectorAll("button").forEach(b =>
@@ -776,6 +807,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* ── Render ── */
+function updateMyOpenCounter() {
+  const el = $("my-open");
+  if (!el) return;
+  if (!currentUser) { el.textContent = ""; return; }
+  const open = leads.filter(l =>
+    l.assigned_to_email === currentUser.email &&
+    !l.contacted && !l.irrelevant && !isArchived(l)).length;
+  el.textContent = open ? `Jouw openstaande leads: ${open}` : "";
+}
+
 function visibleLeads() {
   let rows;
   if (activeTab === "Irrelevant") {
@@ -791,6 +832,8 @@ function visibleLeads() {
     rows = rows.filter(l => !isBlockedCompany(l.company));
     if (activeFilter === "todo") rows = rows.filter(l => !l.contacted);
     if (activeFilter === "done") rows = rows.filter(l => l.contacted);
+    if (activeFilter === "mine") rows = rows.filter(l =>
+      currentUser && l.assigned_to_email === currentUser.email);
   }
   if (regionFilter !== "alle") rows = rows.filter(l => l.region === regionFilter);
   if (searchTerm) {
@@ -803,6 +846,7 @@ function visibleLeads() {
 
 function render() {
   buildTabs();
+  updateMyOpenCounter();
   const isStats = activeTab === "Statistieken";
   document.querySelector(".toolbar").style.display = isStats ? "none" : "flex";
   if (isStats) { renderStats(); return; }
@@ -876,6 +920,10 @@ function cardHtml(l) {
       <span class="badge outcome-neg">&#128683; ${IRRELEVANT_REASONS[l.irrelevant_reason]?.label || esc(l.irrelevant_reason)}</span>
       <span class="who">${l.irrelevant_by
         ? `door ${esc(l.irrelevant_by)}${l.irrelevant_at ? " op " + new Date(l.irrelevant_at).toLocaleDateString("nl-BE") : ""}` : ""}</span>` : ""}
+      <label class="who" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:11px;color:var(--charcoal)">Toegewezen aan</label>
+      <input data-act="assign" list="members-dl" value="${esc(l.assigned_to_name || "")}"
+             placeholder="Typ een naam…" autocomplete="off"
+             style="width:100%;padding:7px 9px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--lighter)">
       <textarea data-act="note" placeholder="Notitie voor het team…">${esc(l.note || "")}</textarea>
       <span class="who">Eerst gezien: ${fmtDate(l.first_seen)} &middot; laatst: ${fmtDate(l.last_seen)}</span>
     </div>
@@ -1031,6 +1079,38 @@ function bindCardEvents() {
       const { error } = await db.from("leads").update({ note: ta.value }).eq("id", id);
       if (error) alert("Notitie opslaan mislukt: " + error.message);
     });
+
+    // ── Toewijzen aan een collega ──
+    const asg = card.querySelector("[data-act=assign]");
+    asg.addEventListener("change", async () => {
+      const val = asg.value.trim();
+      if (!val) {
+        // Toewijzing wissen
+        lead.assigned_to_name = null; lead.assigned_to_email = null;
+        render();
+        if (DEMO) return;
+        const { error } = await db.from("leads").update({
+          assigned_to_name: null, assigned_to_email: null }).eq("id", id);
+        if (error) { alert("Opslaan mislukt: " + error.message); loadLeads(); }
+        return;
+      }
+      const member = membersList.find(m =>
+        (m.name || "").toLowerCase() === val.toLowerCase() ||
+        (m.email || "").toLowerCase() === val.toLowerCase());
+      if (!member) {
+        alert("Kies een geregistreerde collega uit de lijst.");
+        asg.value = lead.assigned_to_name || "";
+        return;
+      }
+      lead.assigned_to_name  = member.name || member.email;
+      lead.assigned_to_email = member.email;
+      render();
+      if (DEMO) return;
+      const { error } = await db.from("leads").update({
+        assigned_to_name: lead.assigned_to_name,
+        assigned_to_email: lead.assigned_to_email }).eq("id", id);
+      if (error) { alert("Opslaan mislukt: " + error.message); loadLeads(); }
+    });
   });
 }
 
@@ -1113,6 +1193,16 @@ function statsData() {
     u.verwerkt++;
     if (l.outcome && u[l.outcome] !== undefined) u[l.outcome]++;
   }
+  // Openstaande toegewezen leads per persoon (nog te contacteren)
+  for (const l of leads.filter(x => x.assigned_to_name &&
+        !x.contacted && !x.irrelevant && !isArchived(x))) {
+    const u = users[l.assigned_to_name] ??= {
+      name: l.assigned_to_name, verwerkt: 0,
+      lead_aangemaakt: 0, meeting_gepland: 0, geen_interesse: 0,
+      laatst: null,
+    };
+    u.open = (u.open || 0) + 1;
+  }
   const list = Object.values(users).sort((a, b) => b.verwerkt - a.verwerkt);
 
   return {
@@ -1131,15 +1221,17 @@ function statsHtml() {
 
   const rowsHtml = list.map(u => {
     const pos = u.lead_aangemaakt + u.meeting_gepland;
-    const inactiveDays = Math.floor((Date.now() - new Date(u.laatst)) / 86400000);
-    return `<tr class="${inactiveDays > 14 ? "inactive" : ""}">
+    const inactiveDays = u.laatst
+      ? Math.floor((Date.now() - new Date(u.laatst)) / 86400000) : null;
+    return `<tr class="${inactiveDays !== null && inactiveDays > 14 ? "inactive" : ""}">
       <td>${esc(u.name)}</td>
+      <td class="num">${u.open || 0}</td>
       <td class="num">${u.verwerkt}</td>
       <td class="num">${u.lead_aangemaakt}</td>
       <td class="num">${u.meeting_gepland}</td>
       <td class="num">${u.geen_interesse}</td>
       <td class="num">${u.verwerkt ? Math.round(100 * pos / u.verwerkt) + "%" : "—"}</td>
-      <td>${inactiveDays <= 0 ? "vandaag" : inactiveDays === 1 ? "gisteren" : inactiveDays + " dagen geleden"}</td>
+      <td>${inactiveDays === null ? "—" : inactiveDays <= 0 ? "vandaag" : inactiveDays === 1 ? "gisteren" : inactiveDays + " dagen geleden"}</td>
     </tr>`;
   }).join("");
 
@@ -1168,7 +1260,9 @@ function statsHtml() {
       </div>
       <table class="stats">
         <thead><tr>
-          <th>Naam</th><th style="text-align:right">Gecontacteerd</th>
+          <th>Naam</th>
+          <th style="text-align:right" title="Toegewezen leads die nog gecontacteerd moeten worden">Open toegewezen</th>
+          <th style="text-align:right">Gecontacteerd</th>
           <th style="text-align:right">Lead aangemaakt</th>
           <th style="text-align:right">Meeting ingepland</th>
           <th style="text-align:right">Geen interesse</th>
@@ -1176,7 +1270,7 @@ function statsHtml() {
           <th>Laatste contact</th>
         </tr></thead>
         <tbody>${rowsHtml ||
-          `<tr><td colspan="7">Nog geen leads gecontacteerd in deze periode.</td></tr>`}</tbody>
+          `<tr><td colspan="8">Nog geen leads gecontacteerd in deze periode.</td></tr>`}</tbody>
       </table>
       <p style="font-size:13px;margin-top:14px">
         <strong>Totaal deze periode:</strong> ${totV} leads gecontacteerd, waarvan
@@ -1362,6 +1456,7 @@ $("export-btn").addEventListener("click", async () => {
         "WEBSITE":       l.website || "",
         "SCORE (OP 10)": score10(l.score),
         "# VACATURES":   l.vacancy_count,
+        "TOEGEWEZEN AAN": l.assigned_to_name || "",
         "GECONTACTEERD": l.contacted ? "JA" : "NEE",
         "RESULTAAT":     l.outcome ? (OUTCOMES[l.outcome]?.label || l.outcome) : "",
         "DOOR":          l.contacted_by || "",
@@ -1399,16 +1494,26 @@ $("export-btn").addEventListener("click", async () => {
       if (l.outcome && u[l.outcome] !== undefined) u[l.outcome]++;
       if (l.contacted_at > u.laatst) u.laatst = l.contacted_at;
     }
+    // Openstaande toegewezen leads per persoon meenemen
+    for (const l of leads.filter(x => x.assigned_to_name &&
+          !x.contacted && !x.irrelevant && !isArchived(x))) {
+      const u = users[l.assigned_to_name] ??= {
+        naam: l.assigned_to_name, verwerkt: 0,
+        lead_aangemaakt: 0, meeting_gepland: 0, geen_interesse: 0, laatst: null,
+      };
+      u.open = (u.open || 0) + 1;
+    }
     const statRows = Object.values(users)
       .sort((a, b) => b.verwerkt - a.verwerkt)
       .map(u => ({
         "NAAM":              u.naam,
+        "OPEN TOEGEWEZEN":   u.open || 0,
         "GECONTACTEERD":     u.verwerkt,
         "LEAD AANGEMAAKT":   u.lead_aangemaakt,
         "MEETING INGEPLAND": u.meeting_gepland,
         "GEEN INTERESSE":    u.geen_interesse,
         "POSITIEF":          u.lead_aangemaakt + u.meeting_gepland,
-        "LAATSTE CONTACT":   new Date(u.laatst).toLocaleDateString("nl-BE"),
+        "LAATSTE CONTACT":   u.laatst ? new Date(u.laatst).toLocaleDateString("nl-BE") : "",
       }));
     const ws = XLSX.utils.json_to_sheet(statRows.length ? statRows : [{ "NAAM": "" }]);
     XLSX.utils.book_append_sheet(wb, ws, "Statistieken");
