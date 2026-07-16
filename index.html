@@ -322,6 +322,7 @@
       <button class="chip" data-region="Antwerpen / Limburg">Antwerpen/Limburg</button>
       <button class="chip" data-region="Oost & West-Vlaanderen">Oost &amp; West</button>
       <button class="chip" data-region="Brussel / Vlaams-Brabant">Brussel/Vl-Brabant</button>
+      <button class="chip" data-region="Zuid-Nederland">Zuid-Nederland</button>
     </div>
   </div>
 
@@ -424,7 +425,7 @@ let usersOk        = true;  // false zolang de v7-migratie nog niet draaide
 let requestsList   = null;  // toegangsaanvragen (managers)
 let requestsOk     = true;  // false zolang de v8-migratie nog niet draaide
 let membersList    = [];    // goedgekeurde collega's [{email,name}] voor toewijzing
-const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant"];
+const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant", "Zuid-Nederland"];
 const vacCache  = {};       // lead_id -> vacancies[]
 const expanded  = new Set();
 const pendingOutcome = new Set();     // leads die wachten op uitkomst-keuze
@@ -583,7 +584,8 @@ async function gateAccess() {
 }
 
 function demoLeads() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today  = new Date().toISOString().slice(0, 10);
+  const nowIso = new Date().toISOString(); // last_seen toont nu ook een tijdstip
   const d = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
   let n = 0;
   const mk = (bu, company, loc, region, opts = {}) => ({
@@ -591,7 +593,7 @@ function demoLeads() {
     website: opts.web || "", email: opts.email || "", phone: opts.phone || "",
     contact_name: opts.contact_name || null, contact_title: opts.contact_title || null,
     score: opts.score || 10, vacancy_count: (opts.vacs || ["Vacature"]).length,
-    knelpunt: !!opts.knelpunt, first_seen: opts.first || today, last_seen: opts.last || today,
+    knelpunt: !!opts.knelpunt, first_seen: opts.first || today, last_seen: opts.last || nowIso,
     contacted: !!opts.by, contacted_by: opts.by || null,
     contacted_at: opts.by ? new Date().toISOString() : null,
     outcome: opts.outcome || null, note: opts.note || null,
@@ -721,7 +723,7 @@ async function loadLeads() {
   if (error) { $("list").innerHTML = `<div class="empty">Fout bij laden: ${error.message}</div>`; return; }
   leads = data || [];
   const newest = leads.reduce((m, l) => l.last_seen > m ? l.last_seen : m, "");
-  $("last-update").textContent = newest ? `Laatste update: ${fmtDate(newest)}` : "";
+  $("last-update").textContent = newest ? `Laatste update: ${fmtDateTime(newest)}` : "";
   render();
   loadTopTitles();
 }
@@ -755,7 +757,10 @@ function subscribeRealtime() {
 
 /* ── Helpers ── */
 function daysAgo(dateStr) {
-  return Math.floor((Date.now() - new Date(dateStr + "T00:00:00")) / 86400000);
+  // Enkel het datumdeel gebruiken: werkt zowel voor "2026-07-09" als
+  // voor een volledige ISO-timestamp zoals "2026-07-09T14:32:00+00:00".
+  const datumdeel = String(dateStr).split("T")[0];
+  return Math.floor((Date.now() - new Date(datumdeel + "T00:00:00")) / 86400000);
 }
 function isArchived(l) { return daysAgo(l.last_seen) > ARCHIVE_DAYS; }
 function fmtDate(d) {
@@ -764,6 +769,19 @@ function fmtDate(d) {
   if (n === 1) return "gisteren";
   return new Date(d + "T00:00:00").toLocaleDateString("nl-BE",
     { day: "numeric", month: "short", year: "numeric" });
+}
+function fmtDateTime(d) {
+  // Toont ook het tijdstip voor last_seen (nu een timestamptz). Oude,
+  // datum-only records ("2026-07-09") vallen terug op fmtDate().
+  if (!d) return "";
+  if (!String(d).includes("T")) return fmtDate(d);
+  const n = daysAgo(d);
+  const tijd = new Date(d).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" });
+  if (n <= 0) return `vandaag om ${tijd}`;
+  if (n === 1) return `gisteren om ${tijd}`;
+  const datumdeel = String(d).split("T")[0];
+  return `${new Date(datumdeel + "T00:00:00").toLocaleDateString("nl-BE",
+    { day: "numeric", month: "short", year: "numeric" })} om ${tijd}`;
 }
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g,
@@ -999,7 +1017,7 @@ function cardHtml(l) {
              placeholder="Typ een naam…" autocomplete="off"
              style="width:100%;padding:7px 9px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--lighter)">
       <textarea data-act="note" placeholder="Notitie voor het team…">${esc(l.note || "")}</textarea>
-      <span class="who">Eerst gezien: ${fmtDate(l.first_seen)} &middot; laatst: ${fmtDate(l.last_seen)}</span>
+      <span class="who">Eerst gezien: ${fmtDate(l.first_seen)} &middot; laatst: ${fmtDateTime(l.last_seen)}</span>
     </div>
   </div>`;
 }
@@ -1518,7 +1536,7 @@ $("export-btn").addEventListener("click", async () => {
     const rows = (bu === "Archief" ? leads.filter(l => isArchived(l) && !l.irrelevant)
                                    : leads.filter(l => l.business_unit === bu && !isArchived(l) && !l.irrelevant))
       .map(l => ({
-        "DATUM":         l.last_seen,
+        "DATUM":         String(l.last_seen || "").split("T")[0],
         "BEDRIJF":       l.company,
         "FUNCTIETITEL":  topTitles[l.id] || "",
         "CONTACTPERSOON": l.contact_name || "",
@@ -1544,7 +1562,7 @@ $("export-btn").addEventListener("click", async () => {
 
   // Apart blad met de niet-relevante leads + reden
   const irrRows = leads.filter(l => l.irrelevant).map(l => ({
-    "DATUM":          l.last_seen,
+    "DATUM":          String(l.last_seen || "").split("T")[0],
     "BEDRIJF":        l.company,
     "BUSINESS UNIT":  l.business_unit,
     "REGIO":          l.region || "",
