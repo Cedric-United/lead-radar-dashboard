@@ -654,10 +654,21 @@ async function checkManager() {
 }
 
 /* ── Weerlijst (geweerde bedrijven) ── */
-function normCompany(s) {
+function normTitle(s) {
+  // MOET gelijk blijven aan norm_title() in scoring.py (scraper):
+  // leestekens → spatie, accenten behouden (\p{L} = unicode-letters)
   return String(s || "").toLowerCase()
-    .replace(/\b(nv|bv|bvba|cvba|vzw|sa|sprl|srl|gcv)\b\.?/g, "")
-    .replace(/[^\w\s]/g, " ")
+    .replace(/[^\p{L}\p{N}_\s]/gu, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+function normCompany(s) {
+  // MOET gelijk blijven aan norm_company() in scoring.py (scraper):
+  // rechtsvorm-suffixen weg, leestekens VERWIJDERD (geen spatie),
+  // accenten behouden — anders matchen de verplaats-sleutels nooit
+  return String(s || "").toLowerCase()
+    .replace(/\b(nv|bv|bvba|cvba|vzw|sa|sprl|srl|gcv|comm\.?v|n\.v\.|b\.v\.)\b\.?/g, "")
+    .replace(/[^\p{L}\p{N}_\s]/gu, "")
     .replace(/\s+/g, " ").trim();
 }
 
@@ -1230,10 +1241,23 @@ function bindCardEvents() {
         bu_moved_by: name, bu_moved_at: new Date().toISOString(),
       }).eq("id", id);
       if (error) { alert("Verplaatsen mislukt: " + error.message); loadLeads(); return; }
-      // Onthoud de verplaatsing zodat de scraper hem nooit terugdraait
-      await db.from("lead_moves").upsert(
-        { company_norm: normCompany(lead.company), bu_from: from, bu_to: target, moved_by: name },
-        { onConflict: "company_norm,bu_from" });
+      // Onthoud de verplaatsing per FUNCTIETITEL, niet per bedrijf: een
+      // bedrijf kan tegelijk vacatures in meerdere units hebben (bv. een
+      // 'data analyst - supply chain' én een 'boekhouder'). Enkel de titels
+      // die nu op deze kaart staan verhuizen voortaan automatisch mee.
+      const { data: mvVacs } = await db.from("vacancies")
+        .select("title").eq("lead_id", id);
+      const mvTitles = [...new Set((mvVacs || [])
+        .map(v => normTitle(v.title)).filter(Boolean))].slice(0, 15);
+      if (!mvTitles.length && topTitles[id]) mvTitles.push(normTitle(topTitles[id]));
+      if (mvTitles.length) {
+        await db.from("lead_moves").upsert(
+          mvTitles.map(t => ({
+            company_norm: normCompany(lead.company), title_norm: t,
+            bu_from: from, bu_to: target, moved_by: name,
+          })),
+          { onConflict: "company_norm,title_norm" });
+      }
       // Lerende regel voorstellen: gelijkaardige titels voortaan meteen juist
       const kw = prompt(
         `Verplaatst naar ${target}.\n\n` +
