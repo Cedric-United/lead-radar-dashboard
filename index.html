@@ -305,6 +305,7 @@
       <button class="chip" data-filter="todo">Te contacteren</button>
       <button class="chip" data-filter="done">Gecontacteerd</button>
       <button class="chip" id="mine-toggle">Mijn leads</button>
+      <button class="chip" id="hh-toggle" title="Toon enkel leads die via een headhunterkantoor binnenkwamen">&#128269; Via headhunter</button>
       <select id="sort-select" title="Sorteervolgorde"
         style="padding:8px 10px;border:1px solid var(--border);font-family:inherit;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;background:var(--white);color:var(--body);cursor:pointer">
         <option value="score">Score (hoog &rarr; laag)</option>
@@ -413,6 +414,7 @@ let activeTab   = BUSINESS_UNITS[0];
 let activeFilter= "all";
 let regionFilter= "alle";
 let mineOnly    = false;    // "Mijn leads" — combineert met de andere filters
+let hhOnly      = false;    // "Via headhunter" — combineert met de andere filters
 let sortMode    = "score";  // score | todo_first | newest
 let searchTerm  = "";
 let isRegister  = false;
@@ -689,7 +691,7 @@ async function loadBlocked() {
 
 async function loadBuRules() {
   const { data, error } = await db.from("bu_rules")
-    .select("id,keyword,target_bu,status,created_by,created_at,source_company,source_title")
+    .select("id,keyword,target_bu,status,created_by,created_at,source_company,source_title,hits")
     .order("created_at", { ascending: false });
   if (error) { buRulesOk = false; buRulesList = []; return; }
   buRulesOk = true;
@@ -878,6 +880,13 @@ $("mine-toggle").addEventListener("click", () => {
   render();
 });
 
+// "Via headhunter" — combineert met de andere filters
+$("hh-toggle").addEventListener("click", () => {
+  hhOnly = !hhOnly;
+  $("hh-toggle").classList.toggle("active", hhOnly);
+  render();
+});
+
 $("sort-select").addEventListener("change", (e) => {
   sortMode = e.target.value;
   render();
@@ -954,6 +963,7 @@ function visibleLeads() {
     if (activeFilter === "done") rows = rows.filter(l => l.contacted);
     if (mineOnly) rows = rows.filter(l =>
       currentUser && l.assigned_to_email === currentUser.email);
+    if (hhOnly) rows = rows.filter(l => l.via_headhunter);
   }
   if (regionFilter !== "alle") rows = rows.filter(l => l.region === regionFilter);
   if (searchTerm) {
@@ -1553,6 +1563,7 @@ function statsHtml() {
             ${act.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${act.map(r =>
               `<span class="badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px">
                 ${esc(r.keyword)} &rarr; ${esc(r.target_bu)}
+                <span style="color:#9aa0aa" title="Zo vaak heeft deze regel een vacature herplaatst">${r.hits || 0}&times;</span>
                 <a data-rule-del="${r.id}" title="Regel verwijderen" style="cursor:pointer;color:#a33;font-weight:700">&#10006;</a></span>`).join("")}</div>`
               : `<span class="none" style="font-size:13px;font-style:italic">Nog geen actieve regels.</span>`}`;
           })()}
