@@ -376,10 +376,12 @@ const OUTCOMES = {
   geen_interesse:  { label: "Geen interesse",    icon: "&#10006;", positive: false },
 };
 
-// Verplichte reden bij "niet relevant". concurrent/interim → auto-weren.
+// Verplichte reden bij "niet relevant". concurrent/interim → auto-weren;
+// headhunter → kantoor op de headhunterlijst (scraper zoekt dan de eindklant).
 const IRRELEVANT_REASONS = {
   concurrent:     { label: "Concurrent",     block: true  },
   interim_bureau: { label: "Interim bureau", block: true  },
+  headhunter:     { label: "Headhunter",     block: false, hh: true },
   te_klein:       { label: "Te klein",       block: false },
   other:          { label: "Other",          block: false },
 };
@@ -425,6 +427,10 @@ let usersOk        = true;  // false zolang de v7-migratie nog niet draaide
 let requestsList   = null;  // toegangsaanvragen (managers)
 let requestsOk     = true;  // false zolang de v8-migratie nog niet draaide
 let membersList    = [];    // goedgekeurde collega's [{email,name}] voor toewijzing
+let buRulesList    = null;  // geleerde BU-regels (Statistieken, managers)
+let buRulesOk      = true;  // false zolang de v11-migratie nog niet draaide
+let hhFirmsList    = null;  // headhunterkantoren (Statistieken, managers)
+let hhFirmsOk      = true;  // false zolang de v12-migratie nog niet draaide
 const REGION_LIST = ["Antwerpen / Limburg", "Oost & West-Vlaanderen", "Brussel / Vlaams-Brabant", "Zuid-Nederland"];
 const vacCache  = {};       // lead_id -> vacancies[]
 const expanded  = new Set();
@@ -670,6 +676,23 @@ async function loadBlocked() {
   blockedList = (data || []).map(r => ({ raw: r.company, norm: normCompany(r.company) }));
 }
 
+async function loadBuRules() {
+  const { data, error } = await db.from("bu_rules")
+    .select("id,keyword,target_bu,status,created_by,created_at,source_company,source_title")
+    .order("created_at", { ascending: false });
+  if (error) { buRulesOk = false; buRulesList = []; return; }
+  buRulesOk = true;
+  buRulesList = data || [];
+}
+
+async function loadHhFirms() {
+  const { data, error } = await db.from("headhunter_firms")
+    .select("company").order("company");
+  if (error) { hhFirmsOk = false; hhFirmsList = []; return; }
+  hhFirmsOk = true;
+  hhFirmsList = data || [];
+}
+
 async function loadAssignments() {
   const { data, error } = await db.from("assignments")
     .select("business_unit,region,manager_name,manager_email");
@@ -729,14 +752,20 @@ async function loadLeads() {
 }
 
 async function loadTopTitles() {
-  // Eerste functietitel per lead (voor in de kaartkop)
-  const { data } = await db.from("vacancies")
-    .select("lead_id,title,created_at")
-    .order("created_at", { ascending: true })
-    .limit(5000);
+  // Eerste functietitel per lead (voor in de kaartkop). Gepagineerd:
+  // Supabase geeft max 1000 rijen per request, dus met .limit(5000)
+  // misten de nieuwste leads hun titel in de kaartkop.
   topTitles = {};
-  for (const v of (data || [])) {
-    if (!(v.lead_id in topTitles)) topTitles[v.lead_id] = v.title;
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from("vacancies")
+      .select("lead_id,title,created_at")
+      .order("created_at", { ascending: true })
+      .range(from, from + 999);
+    if (error || !data || !data.length) break;
+    for (const v of data) {
+      if (!(v.lead_id in topTitles)) topTitles[v.lead_id] = v.title;
+    }
+    if (data.length < 1000) break;
   }
   render();
 }
@@ -969,6 +998,10 @@ function cardHtml(l) {
         <span class="badge">${l.vacancy_count} vacature${l.vacancy_count > 1 ? "s" : ""}</span>
         ${isNew ? `<span class="badge new">Nieuw</span>` : ""}
         ${l.knelpunt ? `<span class="badge">&#128293; Knelpunt</span>` : ""}
+        ${l.via_headhunter ? `<span class="badge" style="background:#fdf3e0;border-color:#e0c58f">&#128269; ${
+          l.hh_confidence
+            ? `Inschatting via ${esc(l.via_headhunter)} (zekerheid: ${esc(l.hh_confidence)})`
+            : `Via ${esc(l.via_headhunter)} &mdash; eindklant onbekend`}</span>` : ""}
         ${activeTab === "Archief" || activeTab === "Irrelevant" ? `<span class="badge">${esc(l.business_unit)}</span>` : ""}
       </div>
       <div class="contactrow">
@@ -1012,6 +1045,12 @@ function cardHtml(l) {
       <span class="badge outcome-neg">&#128683; ${IRRELEVANT_REASONS[l.irrelevant_reason]?.label || esc(l.irrelevant_reason)}</span>
       <span class="who">${l.irrelevant_by
         ? `door ${esc(l.irrelevant_by)}${l.irrelevant_at ? " op " + new Date(l.irrelevant_at).toLocaleDateString("nl-BE") : ""}` : ""}</span>` : ""}
+      <label class="who" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:11px;color:var(--charcoal)">Business unit</label>
+      <select data-act="movebu" title="Staat deze lead onder de verkeerde unit? Kies hier de juiste."
+              style="width:100%;padding:7px 9px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--lighter)">
+        ${BUSINESS_UNITS.map(b =>
+          `<option value="${esc(b)}" ${b === l.business_unit ? "selected" : ""}>${esc(b)}</option>`).join("")}
+      </select>
       <label class="who" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:11px;color:var(--charcoal)">Toegewezen aan</label>
       <input data-act="assign" list="members-dl" value="${esc(l.assigned_to_name || "")}"
              placeholder="Typ een naam…" autocomplete="off"
@@ -1155,12 +1194,67 @@ function bindCardEvents() {
           await db.from("blocked_companies")
             .insert({ company: lead.company, added_by: name });
         }
+        // headhunter → kantoor op de headhunterlijst: de scraper leest hun
+        // vacatures voortaan en zoekt de eindklant (i.p.v. weggooien)
+        if (IRRELEVANT_REASONS[reason]?.hh) {
+          await db.from("headhunter_firms")
+            .insert({ company: lead.company, added_by: name });
+          hhFirmsList = null;   // stats-paneel herlaadt bij volgende render
+          alert(`"${lead.company}" staat nu op de headhunterlijst. Vanaf de volgende scan leest de tool hun vacatures en probeert die de eindklant te achterhalen.`);
+        }
       }));
 
     const reasonCancel = card.querySelector("[data-act=reason-cancel]");
     if (reasonCancel) reasonCancel.addEventListener("click", () => {
       pendingIrrelevant.delete(id);
       render();
+    });
+
+    // ── Verplaatsen naar een andere business unit ──
+    const mv = card.querySelector("[data-act=movebu]");
+    if (mv) mv.addEventListener("change", async () => {
+      const target = mv.value;
+      if (!target || target === lead.business_unit) return;
+      const from = lead.business_unit;
+      if (!confirm(`"${lead.company}" verplaatsen van ${from} naar ${target}?`)) {
+        mv.value = from;
+        return;
+      }
+      const name = currentUser?.user_metadata?.full_name || currentUser?.email || "";
+      lead.business_unit = target;
+      lead.bu_moved_from = from;
+      render();
+      if (DEMO) return;
+      const { error } = await db.from("leads").update({
+        business_unit: target, bu_moved_from: from,
+        bu_moved_by: name, bu_moved_at: new Date().toISOString(),
+      }).eq("id", id);
+      if (error) { alert("Verplaatsen mislukt: " + error.message); loadLeads(); return; }
+      // Onthoud de verplaatsing zodat de scraper hem nooit terugdraait
+      await db.from("lead_moves").upsert(
+        { company_norm: normCompany(lead.company), bu_from: from, bu_to: target, moved_by: name },
+        { onConflict: "company_norm,bu_from" });
+      // Lerende regel voorstellen: gelijkaardige titels voortaan meteen juist
+      const kw = prompt(
+        `Verplaatst naar ${target}.\n\n` +
+        `Wil je dat gelijkaardige leads voortaan automatisch bij ${target} komen?\n` +
+        `Functietitel van deze lead: "${topTitles[id] || "—"}"\n\n` +
+        `Typ het trefwoord uit de functietitel dat de regel moet herkennen (leeg laten = geen regel):`, "");
+      if (kw && kw.trim()) {
+        const row = {
+          keyword: kw.trim().toLowerCase(), target_bu: target,
+          created_by: name, source_company: lead.company,
+          source_title: topTitles[id] || "",
+          status: isManager ? "active" : "pending",
+        };
+        if (isManager) { row.decided_by = name; row.decided_at = new Date().toISOString(); }
+        const { error: e2 } = await db.from("bu_rules").insert(row);
+        if (e2) alert("Regel opslaan mislukt (bestaat mogelijk al): " + e2.message);
+        else alert(isManager
+          ? `Regel actief: "${row.keyword}" → ${target}. De scraper past dit vanaf de volgende scan toe, ook op bestaande leads.`
+          : `Voorstel doorgestuurd: "${row.keyword}" → ${target}. Een manager bevestigt het in de Statistieken-tab.`);
+        buRulesList = null;
+      }
     });
 
     const ta = card.querySelector("[data-act=note]");
@@ -1215,6 +1309,8 @@ function renderStats() {
   // Accounts + aanvragen één keer ophalen bij het openen van de Statistieken-tab
   if (usersList === null && !DEMO)    { loadUsers().then(render); }
   if (requestsList === null && !DEMO) { loadRequests().then(render); }
+  if (buRulesList === null && !DEMO)  { loadBuRules().then(render); }
+  if (hhFirmsList === null && !DEMO)  { loadHhFirms().then(render); }
   $("list").innerHTML = statsHtml();
   document.querySelectorAll("[data-deluser]").forEach(a =>
     a.addEventListener("click", () => deleteUser(a.dataset.deluser, a.dataset.delname)));
@@ -1234,6 +1330,18 @@ function renderStats() {
   if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") addBlockedCompany(); });
   document.querySelectorAll("[data-unblock]").forEach(a =>
     a.addEventListener("click", () => removeBlockedCompany(a.dataset.unblock)));
+  document.querySelectorAll("[data-rule-ok]").forEach(a =>
+    a.addEventListener("click", () => decideBuRule(a.dataset.ruleOk, true)));
+  document.querySelectorAll("[data-rule-no]").forEach(a =>
+    a.addEventListener("click", () => decideBuRule(a.dataset.ruleNo, false)));
+  document.querySelectorAll("[data-rule-del]").forEach(a =>
+    a.addEventListener("click", () => deleteBuRule(a.dataset.ruleDel)));
+  document.querySelectorAll("[data-unhh]").forEach(a =>
+    a.addEventListener("click", () => removeHhFirm(a.dataset.unhh)));
+  const hhAddBtn = $("hh-add");
+  if (hhAddBtn) hhAddBtn.addEventListener("click", addHhFirm);
+  const hhInp = $("hh-input");
+  if (hhInp) hhInp.addEventListener("keydown", e => { if (e.key === "Enter") addHhFirm(); });
   const asgSave = $("asg-save");
   if (asgSave) asgSave.addEventListener("click", saveAssignments);
 }
@@ -1400,6 +1508,54 @@ function statsHtml() {
       </div>`}
     </div>
     <div class="stats-section">
+      <h2>Geleerde BU-regels.</h2>
+      ${!buRulesOk
+        ? `<p style="font-size:13px">Nog niet actief — de databasemigratie (v11) draait mee met de volgende scan.</p>`
+        : (() => {
+            const pend = (buRulesList || []).filter(r => r.status === "pending");
+            const act  = (buRulesList || []).filter(r => r.status === "active");
+            return `<p style="font-size:13px">Verplaatst iemand een lead naar een andere unit, dan kan die een
+              trefwoordregel voorstellen. Regels die jij bevestigt stuurt de scraper: nieuwe én bestaande leads
+              met dat woord in de functietitel komen automatisch bij de juiste unit.</p>
+            ${pend.length ? `<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px">Wacht op jouw bevestiging</h3>
+            <table class="stats"><thead><tr><th>Trefwoord</th><th>Naar unit</th><th>Voorgesteld door</th><th>Voorbeeldtitel</th><th></th></tr></thead>
+            <tbody>${pend.map(r => `<tr>
+              <td><strong>${esc(r.keyword)}</strong></td><td>${esc(r.target_bu)}</td>
+              <td>${esc(r.created_by || "—")}</td>
+              <td style="font-size:12px;color:#666">${esc(r.source_title || "")}</td>
+              <td><a data-rule-ok="${r.id}" style="cursor:pointer;color:#1a5c2a;font-weight:700;margin-right:12px">Bevestig</a>
+                  <a data-rule-no="${r.id}" style="cursor:pointer;color:#a33;font-weight:700">Weiger</a></td></tr>`).join("")}</tbody></table>` : ""}
+            <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px">Actieve regels</h3>
+            ${act.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${act.map(r =>
+              `<span class="badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px">
+                ${esc(r.keyword)} &rarr; ${esc(r.target_bu)}
+                <a data-rule-del="${r.id}" title="Regel verwijderen" style="cursor:pointer;color:#a33;font-weight:700">&#10006;</a></span>`).join("")}</div>`
+              : `<span class="none" style="font-size:13px;font-style:italic">Nog geen actieve regels.</span>`}`;
+          })()}
+    </div>
+    <div class="stats-section">
+      <h2>Headhunterkantoren.</h2>
+      ${!hhFirmsOk
+        ? `<p style="font-size:13px">Nog niet actief — de databasemigratie (v12) draait mee met de volgende scan.</p>`
+        : `<p style="font-size:13px">Vacatures van deze kantoren gooit de scraper niet weg: hij leest ze en probeert
+           de <strong>eindklant</strong> te achterhalen (inschatting + hints bij de lead). Sales vult de lijst aan via
+           Niet&nbsp;relevant &rarr; Headhunter; een vaste lijst searchkantoren (Michael&nbsp;Page, Robert&nbsp;Half, Hays…)
+           zit al ingebouwd in de scraper.</p>
+      <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
+        <input id="hh-input" type="text" placeholder="Kantoornaam…"
+          style="padding:9px 12px;border:1px solid var(--border);font-family:inherit;font-size:13px;width:280px;background:var(--lighter)">
+        <button class="btn" id="hh-add">Toevoegen</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${(hhFirmsList || []).map(h =>
+          `<span class="badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px">
+            ${esc(h.company)}
+            <a data-unhh="${esc(h.company)}" title="Verwijderen van de headhunterlijst"
+               style="cursor:pointer;color:#a33;font-weight:700">&#10006;</a></span>`).join("")
+          || `<span class="none" style="font-size:13px;font-style:italic">Nog geen kantoren gemarkeerd.</span>`}
+      </div>`}
+    </div>
+    <div class="stats-section">
       <h2>Toegangsaanvragen.</h2>
       ${!requestsOk
         ? `<p style="font-size:13px">Goedkeuring is nog niet actief in de database.
@@ -1529,6 +1685,43 @@ async function removeBlockedCompany(raw) {
   render();
 }
 
+/* ── Geleerde BU-regels (managers) ── */
+async function decideBuRule(id, ok) {
+  const name = currentUser?.user_metadata?.full_name || currentUser?.email || "";
+  const { error } = await db.from("bu_rules").update({
+    status: ok ? "active" : "rejected",
+    decided_by: name, decided_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) alert("Mislukt (zelfde trefwoord al actief?): " + error.message);
+  await loadBuRules(); render();
+}
+
+async function deleteBuRule(id) {
+  if (!confirm("Deze regel verwijderen? De scraper past hem dan niet meer toe.")) return;
+  const { error } = await db.from("bu_rules").delete().eq("id", id);
+  if (error) alert("Verwijderen mislukt: " + error.message);
+  await loadBuRules(); render();
+}
+
+/* ── Headhunterkantoren (managers) ── */
+async function addHhFirm() {
+  const inp = $("hh-input");
+  const val = (inp?.value || "").trim();
+  if (!val) return;
+  const name = currentUser?.user_metadata?.full_name || currentUser?.email || "";
+  const { error } = await db.from("headhunter_firms").insert({ company: val, added_by: name });
+  if (error && !/duplicate|bestaat/i.test(String(error.message)))
+    alert("Toevoegen mislukt: " + error.message);
+  await loadHhFirms(); render();
+}
+
+async function removeHhFirm(company) {
+  if (!confirm(`"${company}" van de headhunterlijst halen? Hun vacatures worden dan weer als concurrent genegeerd.`)) return;
+  const { error } = await db.from("headhunter_firms").delete().eq("company", company);
+  if (error) alert("Verwijderen mislukt: " + error.message);
+  await loadHhFirms(); render();
+}
+
 /* ── Excel-export ── */
 $("export-btn").addEventListener("click", async () => {
   const wb = XLSX.utils.book_new();
@@ -1548,6 +1741,8 @@ $("export-btn").addEventListener("click", async () => {
         "WEBSITE":       l.website || "",
         "SCORE (OP 10)": score10(l.score),
         "# VACATURES":   l.vacancy_count,
+        "VIA HEADHUNTER": l.via_headhunter
+          ? `${l.via_headhunter}${l.hh_confidence ? ` (inschatting, ${l.hh_confidence})` : " (eindklant onbekend)"}` : "",
         "TOEGEWEZEN AAN": l.assigned_to_name || "",
         "GECONTACTEERD": l.contacted ? "JA" : "NEE",
         "RESULTAAT":     l.outcome ? (OUTCOMES[l.outcome]?.label || l.outcome) : "",
