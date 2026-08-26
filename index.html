@@ -305,6 +305,7 @@
       <button class="chip" data-filter="todo">Te contacteren</button>
       <button class="chip" data-filter="done">Gecontacteerd</button>
       <button class="chip" id="mine-toggle">Mijn leads</button>
+      <button class="chip" id="newvac-toggle" title="Toon enkel leads waar recent een nieuwe vacature bijkwam">&#127381; Nieuwe vacature</button>
       <button class="chip" id="hh-toggle" title="Toon enkel leads die via een headhunterkantoor binnenkwamen">&#128269; Via headhunter</button>
       <select id="sort-select" title="Sorteervolgorde"
         style="padding:8px 10px;border:1px solid var(--border);font-family:inherit;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;background:var(--white);color:var(--body);cursor:pointer">
@@ -415,6 +416,7 @@ let activeFilter= "all";
 let regionFilter= "alle";
 let mineOnly    = false;    // "Mijn leads" — combineert met de andere filters
 let hhOnly      = false;    // "Via headhunter" — combineert met de andere filters
+let newVacOnly  = false;    // "Nieuwe vacature" — combineert met de andere filters
 let sortMode    = "score";  // score | todo_first | newest
 let searchTerm  = "";
 let isRegister  = false;
@@ -887,6 +889,22 @@ $("hh-toggle").addEventListener("click", () => {
   render();
 });
 
+// "Nieuwe vacature" — combineert met de andere filters
+$("newvac-toggle").addEventListener("click", () => {
+  newVacOnly = !newVacOnly;
+  $("newvac-toggle").classList.toggle("active", newVacOnly);
+  render();
+});
+
+// Heeft deze lead een vacature die ná het (laatste) contact — of, voor
+// niet-gecontacteerde leads, in de laatste 7 dagen — is bijgekomen?
+function hasNewVacancy(l) {
+  if (!l.new_vacancy_at) return false;
+  if (l.contacted && l.contacted_at)
+    return new Date(l.new_vacancy_at) > new Date(l.contacted_at);
+  return (Date.now() - new Date(l.new_vacancy_at)) < 7 * 24 * 3600 * 1000;
+}
+
 $("sort-select").addEventListener("change", (e) => {
   sortMode = e.target.value;
   render();
@@ -964,6 +982,7 @@ function visibleLeads() {
     if (mineOnly) rows = rows.filter(l =>
       currentUser && l.assigned_to_email === currentUser.email);
     if (hhOnly) rows = rows.filter(l => l.via_headhunter);
+    if (newVacOnly) rows = rows.filter(hasNewVacancy);
   }
   if (regionFilter !== "alle") rows = rows.filter(l => l.region === regionFilter);
   if (searchTerm) {
@@ -1018,6 +1037,8 @@ function cardHtml(l) {
         <span class="badge score">Score ${score10Txt(l.score)}/10</span>
         <span class="badge">${l.vacancy_count} vacature${l.vacancy_count > 1 ? "s" : ""}</span>
         ${isNew ? `<span class="badge new">Nieuw</span>` : ""}
+        ${!isNew && hasNewVacancy(l) ? `<span class="badge new">&#127381; Nieuwe vacature</span>` : ""}
+        ${!l.contacted && l.prev_contacted_at ? `<span class="badge" title="Deze lead werd eerder al gecontacteerd; door een nieuwe vacature staat hij terug open" style="background:#eef3fb;border-color:#b9c9e4">&#9745; Reeds gecontacteerd${l.prev_outcome && OUTCOMES[l.prev_outcome] ? `: ${OUTCOMES[l.prev_outcome].label}` : ""}${l.prev_contacted_by ? ` door ${esc(l.prev_contacted_by)}` : ""} op ${new Date(l.prev_contacted_at).toLocaleDateString("nl-BE")}</span>` : ""}
         ${l.knelpunt ? `<span class="badge">&#128293; Knelpunt</span>` : ""}
         ${l.via_headhunter ? `<span class="badge" style="background:#fdf3e0;border-color:#e0c58f">&#128269; ${
           l.hh_confidence
@@ -1778,6 +1799,10 @@ $("export-btn").addEventListener("click", async () => {
         "# VACATURES":   l.vacancy_count,
         "VIA HEADHUNTER": l.via_headhunter
           ? `${l.via_headhunter}${l.hh_confidence ? ` (inschatting, ${l.hh_confidence})` : " (eindklant onbekend)"}` : "",
+        "NIEUWE VACATURE": hasNewVacancy(l) && l.new_vacancy_at
+          ? new Date(l.new_vacancy_at).toLocaleDateString("nl-BE") : "",
+        "EERDER GECONTACTEERD": (!l.contacted && l.prev_contacted_at)
+          ? `${OUTCOMES[l.prev_outcome]?.label || ""} door ${l.prev_contacted_by || "?"} op ${new Date(l.prev_contacted_at).toLocaleDateString("nl-BE")}`.trim() : "",
         "TOEGEWEZEN AAN": l.assigned_to_name || "",
         "GECONTACTEERD": l.contacted ? "JA" : "NEE",
         "RESULTAAT":     l.outcome ? (OUTCOMES[l.outcome]?.label || l.outcome) : "",
