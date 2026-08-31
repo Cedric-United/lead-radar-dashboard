@@ -154,6 +154,7 @@
   }
   .badge.score { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
   .badge.new { border-color: var(--charcoal); }
+  .badge.loose { color: #707783; border-style: dashed; }
   .contactrow { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; margin-top: 8px; }
   .contactrow .none { color: #9aa0aa; font-style: italic; }
   .vac-toggle {
@@ -1040,6 +1041,7 @@ function cardHtml(l) {
         ${!isNew && hasNewVacancy(l) ? `<span class="badge new">&#127381; Nieuwe vacature</span>` : ""}
         ${!l.contacted && l.prev_contacted_at ? `<span class="badge" title="Deze lead werd eerder al gecontacteerd; door een nieuwe vacature staat hij terug open" style="background:#eef3fb;border-color:#b9c9e4">&#9745; Reeds gecontacteerd${l.prev_outcome && OUTCOMES[l.prev_outcome] ? `: ${OUTCOMES[l.prev_outcome].label}` : ""}${l.prev_contacted_by ? ` door ${esc(l.prev_contacted_by)}` : ""} op ${new Date(l.prev_contacted_at).toLocaleDateString("nl-BE")}</span>` : ""}
         ${l.knelpunt ? `<span class="badge">&#128293; Knelpunt</span>` : ""}
+        ${l.loose_match ? `<span class="badge loose" title="Gevonden via de zoektermen van deze business unit, maar de functietitel matcht niet op de strikte kernwoorden — toegevoegd om deze regio aan 15 open leads te helpen">&#8776; Ruime match</span>` : ""}
         ${l.via_headhunter ? `<span class="badge" style="background:#fdf3e0;border-color:#e0c58f">&#128269; ${
           l.hh_confidence
             ? `Inschatting via ${esc(l.via_headhunter)} (zekerheid: ${esc(l.hh_confidence)})`
@@ -1797,6 +1799,7 @@ $("export-btn").addEventListener("click", async () => {
         "WEBSITE":       l.website || "",
         "SCORE (OP 10)": score10(l.score),
         "# VACATURES":   l.vacancy_count,
+        "RUIME MATCH":   l.loose_match ? "JA" : "",
         "VIA HEADHUNTER": l.via_headhunter
           ? `${l.via_headhunter}${l.hh_confidence ? ` (inschatting, ${l.hh_confidence})` : " (eindklant onbekend)"}` : "",
         "NIEUWE VACATURE": hasNewVacancy(l) && l.new_vacancy_at
