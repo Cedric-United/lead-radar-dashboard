@@ -166,6 +166,17 @@
   .vac .t { font-weight: 600; font-size: 14px; }
   .vac .m { font-size: 12px; color: #707783; margin: 2px 0; }
   .vac .d { font-size: 13px; }
+  /* Vacaturestatus t.o.v. het laatste contact */
+  .vac.vac-open { border-left: 3px solid #a33; padding-left: 10px; }
+  .vac.vac-done .t a, .vac.vac-done .t { color: #707783; }
+  .vst { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em;
+         padding: 1px 6px; margin-right: 8px; border: 1px solid; vertical-align: 1px; }
+  .vst.open { color: #a33; border-color: #a33; }
+  .vst.ok   { color: #707783; border-color: var(--border); font-weight: 600; }
+  .vst.new  { color: var(--charcoal); border-color: var(--charcoal); }
+  .badge.openvac { color: #a33; border-color: #a33; font-weight: 700; }
+  .badge.donevac { color: #707783; }
+  .lead h3 .more { font-size: 12px; font-weight: 600; color: #707783; white-space: nowrap; }
 
   .side { flex: 0 0 240px; display: flex; flex-direction: column; gap: 10px; }
   .check {
@@ -312,7 +323,7 @@
         style="padding:8px 10px;border:1px solid var(--border);font-family:inherit;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;background:var(--white);color:var(--body);cursor:pointer">
         <option value="score">Score (hoog &rarr; laag)</option>
         <option value="todo_first">Te contacteren eerst</option>
-        <option value="newest">Nieuwste eerst</option>
+        <option value="newest">Nieuwste vacature eerst</option>
       </select>
       <div class="spacer"></div>
       <span class="meta" id="my-open" style="font-weight:700;color:var(--charcoal)"></span>
@@ -411,7 +422,9 @@ const db = DEMO ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null;
 let leads       = [];
-let topTitles   = {};   // lead_id -> functietitel van de eerste vacature
+let topTitles   = {};   // lead_id -> functietitel van de NIEUWSTE vacature
+let vacMeta     = {};   // lead_id -> [{title, created_at}] (alle vacatures, licht)
+let latestVacAt = {};   // lead_id -> created_at van de nieuwste vacature
 let activeTab   = BUSINESS_UNITS[0];
 let activeFilter= "all";
 let regionFilter= "alle";
@@ -506,8 +519,11 @@ if (DEMO) {
     $("user-name").textContent    = "Demo Gebruiker (voorbeelddata)";
     leads = demoLeads();
     leads.forEach(l => {
-      vacCache[l.id]  = l._vacs;
-      topTitles[l.id] = l._vacs[0]?.title || "";
+      const byAge = [...l._vacs].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      vacCache[l.id]    = l._vacs;
+      vacMeta[l.id]     = byAge.map(v => ({ title: v.title, created_at: v.created_at }));
+      topTitles[l.id]   = byAge.at(-1)?.title || "";
+      latestVacAt[l.id] = byAge.at(-1)?.created_at || null;
     });
     blockedList = [{ raw: "Voorbeeld Consulting", norm: normCompany("Voorbeeld Consulting") }];
     assignmentsMap = {
@@ -606,18 +622,24 @@ function demoLeads() {
     score: opts.score || 10, vacancy_count: (opts.vacs || ["Vacature"]).length,
     knelpunt: !!opts.knelpunt, first_seen: opts.first || today, last_seen: opts.last || nowIso,
     contacted: !!opts.by, contacted_by: opts.by || null,
-    contacted_at: opts.by ? new Date().toISOString() : null,
+    contacted_at: opts.by ? (opts.contactedAt || new Date().toISOString()) : null,
     outcome: opts.outcome || null, note: opts.note || null,
+    prev_contacted_at: opts.prev ? opts.prev.at : null,
+    prev_contacted_by: opts.prev ? opts.prev.by : null,
+    prev_outcome:      opts.prev ? opts.prev.outcome : null,
+    new_vacancy_at:    opts.newVacAt || null,
     irrelevant: !!opts.irr, irrelevant_reason: opts.irr || null,
     irrelevant_by: opts.irr ? "Jan De Smet" : null,
     irrelevant_at: opts.irr ? new Date().toISOString() : null,
     assigned_to_name: opts.assign || null,
     assigned_to_email: opts.assignMail || null,
-    _vacs: (opts.vacs || ["Vacature"]).map(t => ({
+    _vacs: (opts.vacs || ["Vacature"]).map((t, i) => ({
       title: t, source: "VDAB", url: "#", posted: today,
       location: loc, description: "Voorbeeldomschrijving van de opdracht.",
+      created_at: ago((opts.vacAge || [])[i] ?? 3),
     })),
   });
+  const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
   return [
     mk("Supply Chain", "Logiparts NV", "Antwerpen", "Antwerpen / Limburg",
        { score: 21, email: "hr@logiparts.be", phone: "03 444 55 66", web: "https://logiparts.be",
@@ -627,9 +649,13 @@ function demoLeads() {
        { score: 25, web: "https://freshfoods.example", vacs: ["Warehouse Supervisor"],
          assign: "Demo Gebruiker", assignMail: "demo@unitedconsulting.be",
          by: "Demo Gebruiker", outcome: "lead_aangemaakt" }),
+    // Heropend: gecontacteerd 10 dagen geleden, gisteren kwam er een vacature bij
     mk("Finance", "Atlas Bouwgroep", "Gent", "Oost & West-Vlaanderen",
-       { score: 18, email: "info@atlasbouw.be", vacs: ["GL Accountant", "Financial Controller"],
-         by: "Sofie Peeters", outcome: "meeting_gepland",
+       { score: 18, email: "info@atlasbouw.be", first: d(20),
+         vacs: ["GL Accountant", "Financial Controller", "Payroll Accountant"],
+         vacAge: [20, 15, 1], newVacAt: ago(1),
+         prev: { by: "Sofie Peeters", at: ago(10), outcome: "meeting_gepland" },
+         assign: "Sofie Peeters", assignMail: "sofie@unitedconsulting.be",
          note: "Gebeld — meeting op dinsdag 10u." }),
     mk("Finance", "Medix Pharma", "Leuven", "Brussel / Vlaams-Brabant",
        { score: 12, phone: "016 22 33 44", email: "k.devos@medixpharma.be",
@@ -768,10 +794,11 @@ async function loadLeads() {
 }
 
 async function loadTopTitles() {
-  // Eerste functietitel per lead (voor in de kaartkop). Gepagineerd:
-  // Supabase geeft max 1000 rijen per request, dus met .limit(5000)
-  // misten de nieuwste leads hun titel in de kaartkop.
-  topTitles = {};
+  // Alle vacatures (licht: titel + binnenkomst) per lead: voor de nieuwste
+  // titel in de kaartkop, de sortering "Nieuwste vacature eerst" en de
+  // status besproken / nog niet besproken. Gepagineerd: Supabase geeft
+  // max 1000 rijen per request.
+  const titles = {}, meta = {}, latest = {};
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db.from("vacancies")
       .select("lead_id,title,created_at")
@@ -779,11 +806,61 @@ async function loadTopTitles() {
       .range(from, from + 999);
     if (error || !data || !data.length) break;
     for (const v of data) {
-      if (!(v.lead_id in topTitles)) topTitles[v.lead_id] = v.title;
+      titles[v.lead_id] = v.title;        // oplopend → de laatste wint = nieuwste
+      latest[v.lead_id] = v.created_at;
+      (meta[v.lead_id] ||= []).push({ title: v.title, created_at: v.created_at });
     }
     if (data.length < 1000) break;
   }
+  topTitles = titles; vacMeta = meta; latestVacAt = latest;
+  // Opgeklapte vacaturelijsten die intussen verouderd zijn opnieuw ophalen
+  for (const id of Object.keys(vacCache)) {
+    if ((meta[id] || []).length === vacCache[id].length) continue;
+    delete vacCache[id];
+    if (expanded.has(id)) {
+      db.from("vacancies").select("*").eq("lead_id", id)
+        .then(({ data }) => { vacCache[id] = data || []; render(); });
+    }
+  }
   render();
+}
+
+// ── Vacaturestatus t.o.v. het laatste contact ───────────
+// Contact gebeurt per bedrijf: wie belt, bespreekt alle vacatures die er
+// op dat moment stonden. Een vacature die ná het laatste contact binnenkwam
+// is dus nog niet besproken. Dezelfde functie via een andere jobsite telt
+// als dezelfde vacature (vergelijking op genormaliseerde titel).
+function lastContactAt(l) {
+  if (l.contacted && l.contacted_at) return l.contacted_at;
+  return l.prev_contacted_at || null;     // heropende lead: het vorige contact
+}
+
+function vacsOf(l) { return vacCache[l.id] || vacMeta[l.id] || null; }
+
+function contactSplit(l, list) {
+  const lc = lastContactAt(l);
+  if (!lc || !list || !list.length) return null;   // nooit gecontacteerd → geen status
+  const t = Date.parse(lc);
+  const discussed = new Set(list
+    .filter(v => !v.created_at || Date.parse(v.created_at) <= t)
+    .map(v => normTitle(v.title)));
+  const isDiscussed = v => discussed.has(normTitle(v.title));
+  const open = [...new Set(list.filter(v => !isDiscussed(v)).map(v => normTitle(v.title)))];
+  const openTitles = open.map(nt => list.find(v => normTitle(v.title) === nt).title);
+  return { lc, isDiscussed, openCount: open.length, openTitles };
+}
+
+// Moment van de recentste activiteit: nieuwste vacature, anders eerste keer gezien
+function latestActivity(l) {
+  return Math.max(
+    Date.parse(latestVacAt[l.id] || "") || 0,
+    Date.parse(l.new_vacancy_at || "") || 0,
+    Date.parse(l.first_seen || "") || 0,
+  );
+}
+
+function fmtDay(iso) {
+  return new Date(iso).toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
 }
 
 let channel = null;
@@ -900,6 +977,10 @@ $("newvac-toggle").addEventListener("click", () => {
 // Heeft deze lead een vacature die ná het (laatste) contact — of, voor
 // niet-gecontacteerde leads, in de laatste 7 dagen — is bijgekomen?
 function hasNewVacancy(l) {
+  // Met contactgeschiedenis beslist de vacaturestatus: zolang er een
+  // onbesproken vacature is, blijft het signaal staan (geen 7-dagengrens)
+  const s = contactSplit(l, vacsOf(l));
+  if (s) return s.openCount > 0;
   if (!l.new_vacancy_at) return false;
   if (l.contacted && l.contacted_at)
     return new Date(l.new_vacancy_at) > new Date(l.contacted_at);
@@ -998,8 +1079,9 @@ function visibleLeads() {
     rows.sort((a, b) => (a.contacted === b.contacted) ? byScore(a, b)
                                                       : (a.contacted ? 1 : -1));
   } else if (sortMode === "newest") {
-    rows.sort((a, b) => (b.first_seen || "").localeCompare(a.first_seen || "")
-                        || byScore(a, b));
+    // Op de nieuwste VACATURE, niet op wanneer het bedrijf eerst opdook:
+    // een bekend bedrijf met een vacature van vandaag staat bovenaan
+    rows.sort((a, b) => (latestActivity(b) - latestActivity(a)) || byScore(a, b));
   } else {
     rows.sort(byScore);
   }
@@ -1028,17 +1110,24 @@ function cardHtml(l) {
   const isNew  = daysAgo(l.first_seen) <= 0;
   const isOpen = expanded.has(l.id);
   const vacs   = vacCache[l.id];
+  const split  = contactSplit(l, vacsOf(l));
+  const nVac   = (vacsOf(l) || []).length || l.vacancy_count || 0;
 
   return `<div class="lead ${l.contacted ? "contacted" : ""}" data-id="${l.id}">
     <div class="main">
       <h3>${esc(l.company)}${topTitles[l.id]
-        ? ` <span class="toptitle">— ${esc(topTitles[l.id])}</span>` : ""}</h3>
+        ? ` <span class="toptitle">— ${esc(topTitles[l.id])}${nVac > 1
+            ? ` <span class="more" title="Nieuwste vacature; klap de vacatures open voor de andere">+${nVac - 1} andere</span>` : ""}</span>` : ""}</h3>
       <div class="loc">${esc(l.location || "")}${l.location && l.region ? " — " : ""}${esc(l.region || "")}</div>
       <div class="badges">
         <span class="badge score">Score ${score10Txt(l.score)}/10</span>
         <span class="badge">${l.vacancy_count} vacature${l.vacancy_count > 1 ? "s" : ""}</span>
         ${isNew ? `<span class="badge new">Nieuw</span>` : ""}
-        ${!isNew && hasNewVacancy(l) ? `<span class="badge new">&#127381; Nieuwe vacature</span>` : ""}
+        ${split
+          ? (split.openCount
+              ? `<span class="badge openvac" title="Binnengekomen ná het laatste contact (${fmtDay(split.lc)}): ${esc(split.openTitles.join(" · "))}">&#127381; ${split.openCount} nieuwe vacature${split.openCount > 1 ? "s" : ""} &mdash; nog niet besproken</span>`
+              : `<span class="badge donevac" title="Alle vacatures stonden er al bij het laatste contact (${fmtDay(split.lc)})">&#10003; Alle vacatures besproken</span>`)
+          : (!isNew && hasNewVacancy(l) ? `<span class="badge new">&#127381; Nieuwe vacature</span>` : "")}
         ${!l.contacted && l.prev_contacted_at ? `<span class="badge" title="Deze lead werd eerder al gecontacteerd; door een nieuwe vacature staat hij terug open" style="background:#eef3fb;border-color:#b9c9e4">&#9745; Reeds gecontacteerd${l.prev_outcome && OUTCOMES[l.prev_outcome] ? `: ${OUTCOMES[l.prev_outcome].label}` : ""}${l.prev_contacted_by ? ` door ${esc(l.prev_contacted_by)}` : ""} op ${new Date(l.prev_contacted_at).toLocaleDateString("nl-BE")}</span>` : ""}
         ${l.knelpunt ? `<span class="badge">&#128293; Knelpunt</span>` : ""}
         ${l.loose_match ? `<span class="badge loose" title="Gevonden via de zoektermen van deze business unit, maar de functietitel matcht niet op de strikte kernwoorden — toegevoegd om deze regio aan 15 open leads te helpen">&#8776; Ruime match</span>` : ""}
@@ -1054,8 +1143,8 @@ function cardHtml(l) {
         ${l.phone   ? `<span>&#9742; <a href="tel:${esc(l.phone.replace(/\s/g, ""))}">${esc(l.phone)}</a></span>` : `<span class="none">geen telefoon gevonden</span>`}
         ${l.website ? `<span>&#127760; <a href="${esc(l.website)}" target="_blank" rel="noopener">${esc(l.website.replace(/^https?:\/\//, ""))}</a></span>` : ""}
       </div>
-      <button class="vac-toggle" data-act="vacs">${isOpen ? "&#9662;" : "&#9656;"} Vacatures bekijken (${l.vacancy_count})</button>
-      ${isOpen ? vacListHtml(vacs) : ""}
+      <button class="vac-toggle" data-act="vacs">${isOpen ? "&#9662;" : "&#9656;"} Vacatures bekijken (${l.vacancy_count}${split && split.openCount ? ` &middot; ${split.openCount} nog niet besproken` : ""})</button>
+      ${isOpen ? vacListHtml(vacs, l) : ""}
     </div>
     <div class="side">
       <label class="check">
@@ -1105,15 +1194,27 @@ function cardHtml(l) {
   </div>`;
 }
 
-function vacListHtml(vacs) {
+function vacListHtml(vacs, l) {
   if (!vacs) return `<div class="vacs"><div class="vac"><span class="m">Laden…</span></div></div>`;
   if (!vacs.length) return `<div class="vacs"><div class="vac"><span class="m">Geen vacaturedetails beschikbaar.</span></div></div>`;
-  return `<div class="vacs">` + vacs.map(v => `
-    <div class="vac">
-      <div class="t">${v.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>` : esc(v.title)}</div>
-      <div class="m">${esc(v.source || "")}${v.location ? " &middot; " + esc(v.location) : ""}${v.posted ? " &middot; " + esc(v.posted) : ""}</div>
+  const split  = contactSplit(l, vacs);
+  const recent = v => v.created_at && (Date.now() - Date.parse(v.created_at)) < 7 * 864e5;
+  // Onbesproken vacatures bovenaan, daarbinnen de nieuwste eerst
+  const sorted = [...vacs].sort((a, b) =>
+    ((split ? (split.isDiscussed(a) ? 1 : 0) - (split.isDiscussed(b) ? 1 : 0) : 0))
+    || ((Date.parse(b.created_at || "") || 0) - (Date.parse(a.created_at || "") || 0)));
+  return `<div class="vacs">` + sorted.map(v => {
+    const done = split && split.isDiscussed(v);
+    const status = !split ? (recent(v) ? `<span class="vst new">Nieuw</span>` : "")
+      : done ? `<span class="vst ok" title="Stond er al bij het contact van ${fmtDay(split.lc)}">&#10003; Besproken (${fmtDay(split.lc)})</span>`
+             : `<span class="vst open" title="Binnengekomen ná het laatste contact van ${fmtDay(split.lc)}">&#9679; Nog niet besproken</span>`;
+    return `
+    <div class="vac${split && !done ? " vac-open" : ""}${done ? " vac-done" : ""}">
+      <div class="t">${status}${v.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>` : esc(v.title)}</div>
+      <div class="m">${esc(v.source || "")}${v.location ? " &middot; " + esc(v.location) : ""}${v.posted ? " &middot; " + esc(v.posted) : ""}${v.created_at ? " &middot; binnengekomen " + fmtDay(v.created_at) : ""}</div>
       ${v.description ? `<div class="d">${esc(v.description)}</div>` : ""}
-    </div>`).join("") + `</div>`;
+    </div>`;
+  }).join("") + `</div>`;
 }
 
 /* ── Card-acties ── */
@@ -1804,6 +1905,10 @@ $("export-btn").addEventListener("click", async () => {
           ? `${l.via_headhunter}${l.hh_confidence ? ` (inschatting, ${l.hh_confidence})` : " (eindklant onbekend)"}` : "",
         "NIEUWE VACATURE": hasNewVacancy(l) && l.new_vacancy_at
           ? new Date(l.new_vacancy_at).toLocaleDateString("nl-BE") : "",
+        "NOG NIET BESPROKEN": (() => {
+          const s = contactSplit(l, vacsOf(l));
+          return s && s.openCount ? s.openTitles.join(" | ") : "";
+        })(),
         "EERDER GECONTACTEERD": (!l.contacted && l.prev_contacted_at)
           ? `${OUTCOMES[l.prev_outcome]?.label || ""} door ${l.prev_contacted_by || "?"} op ${new Date(l.prev_contacted_at).toLocaleDateString("nl-BE")}`.trim() : "",
         "TOEGEWEZEN AAN": l.assigned_to_name || "",
