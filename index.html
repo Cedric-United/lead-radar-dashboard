@@ -377,9 +377,9 @@ const BUSINESS_UNITS = ["Supply Chain", "Finance", "Marketing", "HR", "Business 
 const ARCHIVE_DAYS   = 30;
 
 // Ruwe scores worden getoond op 10. Max = basis 5 + kernwoorden 6 +
-// email 3 + telefoon 2 + knelpunt 1 = 17.
+// email 3 + telefoon 2 + knelpunt 1 + kernrol United 3 = 20.
 // Pas je de gewichten in config.py aan? Werk dan ook dit maximum bij.
-const SCORE_MAX = 17;
+const SCORE_MAX = 20;
 const score10   = (s) => Math.min(10, Math.round((s / SCORE_MAX) * 100) / 10);
 const score10Txt = (s) => String(score10(s)).replace(".", ",");
 
